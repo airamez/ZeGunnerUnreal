@@ -132,7 +132,7 @@ void ARocketProjectile::OnRocketHit(UPrimitiveComponent* HitComp, AActor* OtherA
 
 	UE_LOG(LogTemp, Log, TEXT("RocketProjectile: Hit %s"), *OtherActor->GetName());
 
-	// Check if we directly hit a helicopter
+	// Check if we directly hit a helicopter or tank
 	if (AHeliAI* Heli = Cast<AHeliAI>(OtherActor))
 	{
 		UE_LOG(LogTemp, Log, TEXT("RocketProjectile: Direct hit on helicopter!"));
@@ -140,7 +140,8 @@ void ARocketProjectile::OnRocketHit(UPrimitiveComponent* HitComp, AActor* OtherA
 	}
 	else if (ATankAI* Tank = Cast<ATankAI>(OtherActor))
 	{
-		UE_LOG(LogTemp, Log, TEXT("RocketProjectile: Direct hit on tank - no effect"));
+		UE_LOG(LogTemp, Log, TEXT("RocketProjectile: Direct hit on tank!"));
+		Tank->Destroy();
 	}
 
 	// Destroy the rocket

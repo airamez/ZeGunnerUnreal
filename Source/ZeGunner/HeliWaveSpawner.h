@@ -43,13 +43,31 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Spawning", meta = (ClampMin = "100.0"))
 	float SpawnRadius = 2000.0f;
 
-	/** Minimum helicopter speed */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Spawning", meta = (ClampMin = "0.0"))
-	float MinHeliSpeed = 200.0f;
+	// ==================== Wave Speed Scaling ====================
 
-	/** Maximum helicopter speed */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Spawning", meta = (ClampMin = "0.0"))
-	float MaxHeliSpeed = 500.0f;
+	/** Minimum helicopter speed on wave 1 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Speed", meta = (ClampMin = "0.0"))
+	float InitialMinSpeed = 200.0f;
+
+	/** Maximum helicopter speed on wave 1 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Speed", meta = (ClampMin = "0.0"))
+	float InitialMaxSpeed = 500.0f;
+
+	/** Absolute cap for minimum speed (min speed cannot exceed this across waves) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Speed", meta = (ClampMin = "0.0"))
+	float MaxPossibleMinSpeed = 600.0f;
+
+	/** Absolute cap for maximum speed (max speed cannot exceed this across waves) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Speed", meta = (ClampMin = "0.0"))
+	float MaxPossibleMaxSpeed = 1200.0f;
+
+	/** How much the minimum speed increases per wave */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Speed", meta = (ClampMin = "0.0"))
+	float MinSpeedIncrementPerWave = 20.0f;
+
+	/** How much the maximum speed increases per wave */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Speed", meta = (ClampMin = "0.0"))
+	float MaxSpeedIncrementPerWave = 40.0f;
 
 	/** Number of helicopters to spawn in the first wave */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Spawning", meta = (ClampMin = "1"))
@@ -86,6 +104,28 @@ protected:
 	/** Rate of fire - seconds between shots at the base */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Spawning", meta = (ClampMin = "0.1"))
 	float RateOfFire = 3.0f;
+
+	// ==================== Lateral Dancing ====================
+
+	/** Distance from base where helicopters start lateral dancing (units) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Lateral Dancing", meta = (ClampMin = "0.0"))
+	float LateralDanceDistance = 1000.0f;
+
+	/** Minimum lateral movement speed (units/sec) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Lateral Dancing", meta = (ClampMin = "0.0"))
+	float MinLateralSpeed = 100.0f;
+
+	/** Maximum lateral movement speed (units/sec) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Lateral Dancing", meta = (ClampMin = "0.0"))
+	float MaxLateralSpeed = 400.0f;
+
+	/** Minimum time moving in one lateral direction before switching (seconds) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Lateral Dancing", meta = (ClampMin = "0.1"))
+	float MinLateralTime = 0.5f;
+
+	/** Maximum time moving in one lateral direction before switching (seconds) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Lateral Dancing", meta = (ClampMin = "0.1"))
+	float MaxLateralTime = 2.0f;
 
 private:
 	/** Current wave number */

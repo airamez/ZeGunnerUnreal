@@ -30,28 +30,18 @@ AFighterPawn::AFighterPawn()
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	RootComponent = SceneRoot;
 
-	// Create camera pivot for free-look (rotates independently of flight)
-	CameraPivot = CreateDefaultSubobject<USceneComponent>(TEXT("CameraPivot"));
-	CameraPivot->SetupAttachment(SceneRoot);
-
-	// Create first-person camera attached to pivot
+	// Create first-person camera attached directly to root
 	NoseCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("NoseCamera"));
-	NoseCamera->SetupAttachment(CameraPivot);
+	NoseCamera->SetupAttachment(SceneRoot);
 	NoseCamera->bUsePawnControlRotation = false;
 
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
-
-	// Create FreeLookAction in constructor so it's available for SetupPlayerInputComponent
-	// (SetupPlayerInputComponent runs BEFORE BeginPlay)
-	FreeLookAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_FreeLook_Auto"));
-	FreeLookAction->ValueType = EInputActionValueType::Boolean;
-
 
 	// Create game state input actions
 	PauseAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Pause_Auto"));
 	PauseAction->ValueType = EInputActionValueType::Boolean;
 
-	// Debug action for testing (Ctrl+Delete)
+	// Debug action for testing (Delete key)
 	DebugTestWaveAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_DebugTestWave_Auto"));
 	DebugTestWaveAction->ValueType = EInputActionValueType::Boolean;
 
@@ -61,12 +51,12 @@ AFighterPawn::AFighterPawn()
 	QuitAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_Quit_Auto"));
 	QuitAction->ValueType = EInputActionValueType::Boolean;
 
-	// Create slide input actions (Q/E keys)
-	SlideLeftAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_SlideLeft_Auto"));
-	SlideLeftAction->ValueType = EInputActionValueType::Boolean;
+	// Create height input actions (Q/E keys)
+	HeightDownAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_HeightDown_Auto"));
+	HeightDownAction->ValueType = EInputActionValueType::Boolean;
 
-	SlideRightAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_SlideRight_Auto"));
-	SlideRightAction->ValueType = EInputActionValueType::Boolean;
+	HeightUpAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_HeightUp_Auto"));
+	HeightUpAction->ValueType = EInputActionValueType::Boolean;
 
 	// Create radar zoom input actions ([ ] keys)
 	RadarZoomInAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_RadarZoomIn_Auto"));
@@ -75,75 +65,45 @@ AFighterPawn::AFighterPawn()
 	RadarZoomOutAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_RadarZoomOut_Auto"));
 	RadarZoomOutAction->ValueType = EInputActionValueType::Boolean;
 
-	// Create speed control input actions (mouse wheel)
-	SpeedUpAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_SpeedUp_Auto"));
-	SpeedUpAction->ValueType = EInputActionValueType::Boolean;
-
-	SpeedDownAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_SpeedDown_Auto"));
-	SpeedDownAction->ValueType = EInputActionValueType::Boolean;
-
 	// Create FPS toggle input action (F key)
 	FpsToggleAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_FpsToggle_Auto"));
 	FpsToggleAction->ValueType = EInputActionValueType::Boolean;
+
+	// Create mouse wheel zoom input actions
+	MouseWheelZoomInAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_MouseWheelZoomIn_Auto"));
+	MouseWheelZoomInAction->ValueType = EInputActionValueType::Boolean;
+
+	MouseWheelZoomOutAction = CreateDefaultSubobject<UInputAction>(TEXT("IA_MouseWheelZoomOut_Auto"));
+	MouseWheelZoomOutAction->ValueType = EInputActionValueType::Boolean;
 }
 
 void AFighterPawn::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UE_LOG(LogTemp, Warning, TEXT("FighterPawn: BeginPlay started"));
+	UE_LOG(LogTemp, Warning, TEXT("FighterPawn: BeginPlay started (Turret Mode)"));
 
-	// Warmup timer to prevent input from firing on first frames
-	bWarmupComplete = false;
-	WarmupTimer = 1.0f;
+	TurretYaw = 0.0f;
+	TurretPitch = 0.0f;
+	bTurretPositioned = false;
 
-	// Set starting altitude
-	FVector StartLocation = GetActorLocation();
-	StartLocation.Z = StartAltitude;
-	SetActorLocation(StartLocation);
-
-	// Initialize speed
-	CurrentSpeed = DefaultSpeed;
-	
-	// Initialize slide velocity
-	SlideVelocity = FVector::ZeroVector;
-
-	// Apply camera offset and pitch to the camera (relative to pivot)
-	if (NoseCamera)
-	{
-		NoseCamera->SetRelativeLocation(CameraOffset);
-		NoseCamera->SetRelativeRotation(FRotator(CameraPitchOffset, 0.0f, 0.0f));
-		UE_LOG(LogTemp, Warning, TEXT("FighterPawn: Camera configured - Offset=%s, PitchOffset=%.1f"),
-			*CameraOffset.ToString(), CameraPitchOffset);
-	}
-
-	// Initialize virtual cursor to screen center
-	if (APlayerController* PC = Cast<APlayerController>(Controller))
-	{
-		int32 SizeX, SizeY;
-		PC->GetViewportSize(SizeX, SizeY);
-		VirtualCursorPos = FVector2D(SizeX * 0.5f, SizeY * 0.5f);
-	}
-
-	// Configure landscape streaming for aerial view
+	// Configure landscape streaming
 	ConfigureLandscapeStreaming();
 
-	// Create a mapping context for free-look RMB (always works, no Blueprint needed)
-	UInputMappingContext* FreeLookMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_FreeLook_Auto"));
-	FreeLookMappingContext->MapKey(FreeLookAction, EKeys::RightMouseButton);
-	FreeLookMappingContext->MapKey(PauseAction, EKeys::Escape);
-	FreeLookMappingContext->MapKey(ContinueAction, EKeys::C);
-	FreeLookMappingContext->MapKey(QuitAction, EKeys::X);
-	FreeLookMappingContext->MapKey(SlideLeftAction, EKeys::Q);
-	FreeLookMappingContext->MapKey(SlideRightAction, EKeys::E);
-	FreeLookMappingContext->MapKey(RadarZoomInAction, EKeys::LeftBracket);
-	FreeLookMappingContext->MapKey(RadarZoomOutAction, EKeys::RightBracket);
-	FreeLookMappingContext->MapKey(SpeedUpAction, EKeys::MouseScrollUp);
-	FreeLookMappingContext->MapKey(SpeedDownAction, EKeys::MouseScrollDown);
-	FreeLookMappingContext->MapKey(FpsToggleAction, EKeys::F);
-	// Debug: Delete key = Test high-level wave
-	FreeLookMappingContext->MapKey(DebugTestWaveAction, EKeys::Delete);
-	UE_LOG(LogTemp, Warning, TEXT("FighterPawn: Created FreeLook mapping context with RMB, Q/E slide, [ ] zoom, mouse wheel speed, F key FPS toggle, Delete debug"));
+	// Create a mapping context for turret controls (always works, no Blueprint needed)
+	UInputMappingContext* TurretMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Turret_Auto"));
+	TurretMappingContext->MapKey(PauseAction, EKeys::Escape);
+	TurretMappingContext->MapKey(ContinueAction, EKeys::C);
+	TurretMappingContext->MapKey(QuitAction, EKeys::X);
+	TurretMappingContext->MapKey(HeightDownAction, EKeys::Q);
+	TurretMappingContext->MapKey(HeightUpAction, EKeys::E);
+	TurretMappingContext->MapKey(RadarZoomInAction, EKeys::LeftBracket);
+	TurretMappingContext->MapKey(RadarZoomOutAction, EKeys::RightBracket);
+	TurretMappingContext->MapKey(FpsToggleAction, EKeys::F);
+	TurretMappingContext->MapKey(DebugTestWaveAction, EKeys::Delete);
+	TurretMappingContext->MapKey(MouseWheelZoomInAction, EKeys::MouseScrollUp);
+	TurretMappingContext->MapKey(MouseWheelZoomOutAction, EKeys::MouseScrollDown);
+	UE_LOG(LogTemp, Warning, TEXT("FighterPawn: Created Turret mapping context with Q/E height, [ ] zoom, F FPS toggle, Delete debug, mouse wheel zoom"));
 
 	// Add input mapping contexts
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
@@ -153,16 +113,12 @@ void AFighterPawn::BeginPlay()
 			if (FighterMappingContext)
 			{
 				Subsystem->AddMappingContext(FighterMappingContext, 0);
-				UE_LOG(LogTemp, Warning, TEXT("FighterPawn: Mapping context added successfully"));
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("FighterPawn: FighterMappingContext is NULL!"));
+				UE_LOG(LogTemp, Warning, TEXT("FighterPawn: Blueprint mapping context added"));
 			}
 
-			// Add the free-look mapping context at higher priority
-			Subsystem->AddMappingContext(FreeLookMappingContext, 1);
-			UE_LOG(LogTemp, Warning, TEXT("FighterPawn: FreeLook mapping context added"));
+			// Add the turret mapping context at higher priority
+			Subsystem->AddMappingContext(TurretMappingContext, 1);
+			UE_LOG(LogTemp, Warning, TEXT("FighterPawn: Turret mapping context added"));
 		}
 	}
 
@@ -190,12 +146,37 @@ void AFighterPawn::BeginPlay()
 	// Start in Instructions state
 	CurrentGameState = EGameState::Instructions;
 
-	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Initialized at altitude %.0f, speed %.0f"), StartAltitude, CurrentSpeed);
+	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Turret initialized at position (0, 0, %.0f)"), StartAltitude);
 }
 
 void AFighterPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// Force turret to correct position on first frames (after GameMode spawn completes)
+	if (!bTurretPositioned)
+	{
+		SetActorLocationAndRotation(FVector(0.0f, 0.0f, StartAltitude), FRotator::ZeroRotator, false, nullptr, ETeleportType::TeleportPhysics);
+		if (Controller)
+		{
+			Controller->SetControlRotation(FRotator::ZeroRotator);
+		}
+
+		// Find and configure whatever camera component exists (C++ or Blueprint)
+		TArray<UCameraComponent*> Cameras;
+		GetComponents<UCameraComponent>(Cameras);
+		for (UCameraComponent* Cam : Cameras)
+		{
+			// Disable pawn control rotation — we set actor rotation directly
+			Cam->bUsePawnControlRotation = false;
+			// Reset camera to pawn origin (no offset)
+			Cam->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+			UE_LOG(LogTemp, Warning, TEXT("FighterPawn: Configured camera '%s' - disabled PawnControlRotation, reset transform"), *Cam->GetName());
+		}
+
+		bTurretPositioned = true;
+		UE_LOG(LogTemp, Warning, TEXT("FighterPawn: Turret positioned at (0, 0, %.0f). Actual: %s. Found %d cameras."), StartAltitude, *GetActorLocation().ToString(), Cameras.Num());
+	}
 
 	// Warmup period - prevent any actions on first frames
 	if (!bWarmupComplete)
@@ -219,7 +200,6 @@ void AFighterPawn::Tick(float DeltaTime)
 	{
 		FrameMouseDeltaX = 0.0f;
 		FrameMouseDeltaY = 0.0f;
-		bFreeLookActive = false;
 	}
 
 	// Decay damage flash
@@ -234,7 +214,6 @@ void AFighterPawn::Tick(float DeltaTime)
 		FpsUpdateTimer -= DeltaTime;
 		if (FpsUpdateTimer <= 0.0f)
 		{
-			// Calculate current FPS and update display value
 			CurrentFps = 1.0f / DeltaTime;
 			FpsUpdateTimer = FpsUpdateInterval;
 		}
@@ -243,11 +222,9 @@ void AFighterPawn::Tick(float DeltaTime)
 	// Only run gameplay when Playing
 	if (CurrentGameState != EGameState::Playing) return;
 
-	UpdateFlight(DeltaTime);
-	UpdateVirtualCursor(DeltaTime);
-	UpdateFreeLook(DeltaTime);
+	UpdateTurretAim(DeltaTime);
+	UpdateTurretHeight(DeltaTime);
 	UpdateMouseAim();
-	UpdateBombImpactPrediction();
 
 	// Periodically re-bind to newly spawned enemies (every ~1 second)
 	EnemyScanTimer -= DeltaTime;
@@ -262,55 +239,33 @@ void AFighterPawn::Tick(float DeltaTime)
 	{
 		FireRocket();
 	}
-
-	// Check if all enemies in wave are cleared
-	// (also checked in AddTankKill/AddHeliKill but this catches edge cases)
 }
 
 void AFighterPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+	{
+		// Bind mouse wheel zoom actions
+		EnhancedInputComponent->BindAction(MouseWheelZoomInAction, ETriggerEvent::Started, this, &AFighterPawn::OnMouseWheelZoomIn);
+		EnhancedInputComponent->BindAction(MouseWheelZoomOutAction, ETriggerEvent::Started, this, &AFighterPawn::OnMouseWheelZoomOut);
+	}
+
 	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		// W = Nose Down (tip down)
-		if (PitchDownAction)
+		// Q = Height Down
+		if (HeightDownAction)
 		{
-			EIC->BindAction(PitchDownAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnPitchDown);
-			EIC->BindAction(PitchDownAction, ETriggerEvent::Completed, this, &AFighterPawn::OnPitchDownReleased);
+			EIC->BindAction(HeightDownAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnHeightDown);
+			EIC->BindAction(HeightDownAction, ETriggerEvent::Completed, this, &AFighterPawn::OnHeightDownReleased);
 		}
 
-		// S = Nose Up (tip up)
-		if (PitchUpAction)
+		// E = Height Up
+		if (HeightUpAction)
 		{
-			EIC->BindAction(PitchUpAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnPitchUp);
-			EIC->BindAction(PitchUpAction, ETriggerEvent::Completed, this, &AFighterPawn::OnPitchUpReleased);
-		}
-
-		// A = Turn Left
-		if (TurnLeftAction)
-		{
-			EIC->BindAction(TurnLeftAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnTurnLeft);
-			EIC->BindAction(TurnLeftAction, ETriggerEvent::Completed, this, &AFighterPawn::OnTurnLeftReleased);
-		}
-
-		// D = Turn Right
-		if (TurnRightAction)
-		{
-			EIC->BindAction(TurnRightAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnTurnRight);
-			EIC->BindAction(TurnRightAction, ETriggerEvent::Completed, this, &AFighterPawn::OnTurnRightReleased);
-		}
-
-		// Q = Slide Left
-		if (SlideLeftAction)
-		{
-			EIC->BindAction(SlideLeftAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnSlideLeft);
-		}
-
-		// E = Slide Right
-		if (SlideRightAction)
-		{
-			EIC->BindAction(SlideRightAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnSlideRight);
+			EIC->BindAction(HeightUpAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnHeightUp);
+			EIC->BindAction(HeightUpAction, ETriggerEvent::Completed, this, &AFighterPawn::OnHeightUpReleased);
 		}
 
 		// [ = Radar Zoom In
@@ -325,24 +280,6 @@ void AFighterPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 			EIC->BindAction(RadarZoomOutAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnRadarZoomOut);
 		}
 
-		// Mouse Wheel Up = Speed Up
-		if (SpeedUpAction)
-		{
-			EIC->BindAction(SpeedUpAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnSpeedUp);
-		}
-
-		// Mouse Wheel Down = Speed Down
-		if (SpeedDownAction)
-		{
-			EIC->BindAction(SpeedDownAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnSpeedDown);
-		}
-
-		// Space = Drop Bomb
-		if (DropBombAction)
-		{
-			EIC->BindAction(DropBombAction, ETriggerEvent::Started, this, &AFighterPawn::OnDropBomb);
-		}
-
 		// Left Mouse = Fire Rocket
 		if (FireRocketAction)
 		{
@@ -350,14 +287,6 @@ void AFighterPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 			EIC->BindAction(FireRocketAction, ETriggerEvent::Completed, this, &AFighterPawn::OnFireRocketReleased);
 		}
 
-		// Right Mouse = Free Look
-		if (FreeLookAction)
-		{
-			EIC->BindAction(FreeLookAction, ETriggerEvent::Triggered, this, &AFighterPawn::OnFreeLookPressed);
-			EIC->BindAction(FreeLookAction, ETriggerEvent::Completed, this, &AFighterPawn::OnFreeLookReleased);
-		}
-
-	
 		// ESC = Pause
 		if (PauseAction)
 		{
@@ -376,7 +305,7 @@ void AFighterPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 			EIC->BindAction(QuitAction, ETriggerEvent::Started, this, &AFighterPawn::OnQuitGame);
 		}
 
-		// Volume controls (+ / -)
+		// Volume controls
 		if (VolumeUpAction)
 		{
 			EIC->BindAction(VolumeUpAction, ETriggerEvent::Started, this, &AFighterPawn::OnVolumeUp);
@@ -386,7 +315,7 @@ void AFighterPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 			EIC->BindAction(VolumeDownAction, ETriggerEvent::Started, this, &AFighterPawn::OnVolumeDown);
 		}
 
-		// Sensitivity controls (< / >)
+		// Sensitivity controls
 		if (SensitivityUpAction)
 		{
 			EIC->BindAction(SensitivityUpAction, ETriggerEvent::Started, this, &AFighterPawn::OnSensitivityUp);
@@ -396,7 +325,7 @@ void AFighterPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 			EIC->BindAction(SensitivityDownAction, ETriggerEvent::Started, this, &AFighterPawn::OnSensitivityDown);
 		}
 
-		// Debug: Ctrl+Delete = Test high-level wave
+		// Debug: Delete = Test high-level wave
 		if (DebugTestWaveAction)
 		{
 			EIC->BindAction(DebugTestWaveAction, ETriggerEvent::Started, this, &AFighterPawn::OnDebugTestWave);
@@ -412,56 +341,24 @@ void AFighterPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 // ==================== Input Handlers ====================
 
-void AFighterPawn::OnPitchDown(const FInputActionValue& Value)
+void AFighterPawn::OnHeightDown(const FInputActionValue& Value)
 {
-	PitchInput = -1.0f; // Nose down
+	HeightInput = -1.0f;
 }
 
-void AFighterPawn::OnPitchDownReleased(const FInputActionValue& Value)
+void AFighterPawn::OnHeightDownReleased(const FInputActionValue& Value)
 {
-	PitchInput = 0.0f;
+	HeightInput = 0.0f;
 }
 
-void AFighterPawn::OnPitchUp(const FInputActionValue& Value)
+void AFighterPawn::OnHeightUp(const FInputActionValue& Value)
 {
-	PitchInput = 1.0f; // Nose up
+	HeightInput = 1.0f;
 }
 
-void AFighterPawn::OnPitchUpReleased(const FInputActionValue& Value)
+void AFighterPawn::OnHeightUpReleased(const FInputActionValue& Value)
 {
-	PitchInput = 0.0f;
-}
-
-void AFighterPawn::OnTurnLeft(const FInputActionValue& Value)
-{
-	YawInput = -1.0f;
-}
-
-void AFighterPawn::OnTurnLeftReleased(const FInputActionValue& Value)
-{
-	YawInput = 0.0f;
-}
-
-void AFighterPawn::OnTurnRight(const FInputActionValue& Value)
-{
-	YawInput = 1.0f;
-}
-
-void AFighterPawn::OnTurnRightReleased(const FInputActionValue& Value)
-{
-	YawInput = 0.0f;
-}
-
-void AFighterPawn::OnSlideLeft(const FInputActionValue& Value)
-{
-	// Add left slide velocity (negative Y in local space)
-	SlideVelocity.Y = -SlideSpeed;
-}
-
-void AFighterPawn::OnSlideRight(const FInputActionValue& Value)
-{
-	// Add right slide velocity (positive Y in local space)
-	SlideVelocity.Y = SlideSpeed;
+	HeightInput = 0.0f;
 }
 
 void AFighterPawn::OnRadarZoomIn(const FInputActionValue& Value)
@@ -476,28 +373,6 @@ void AFighterPawn::OnRadarZoomOut(const FInputActionValue& Value)
 	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Radar Zoom OUT -> %.2f"), RadarZoom);
 }
 
-void AFighterPawn::OnSpeedUp(const FInputActionValue& Value)
-{
-	DefaultSpeed = FMath::Clamp(DefaultSpeed + SpeedStep, MinSpeed, MaxSpeed);
-	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Speed UP -> %.0f"), DefaultSpeed);
-}
-
-void AFighterPawn::OnSpeedDown(const FInputActionValue& Value)
-{
-	DefaultSpeed = FMath::Clamp(DefaultSpeed - SpeedStep, MinSpeed, MaxSpeed);
-	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Speed DOWN -> %.0f"), DefaultSpeed);
-}
-
-void AFighterPawn::OnDropBomb(const FInputActionValue& Value)
-{
-	UE_LOG(LogTemp, Warning, TEXT("FighterPawn: OnDropBomb called - Warmup: %s, GameState: %d"), 
-		bWarmupComplete ? TEXT("true") : TEXT("false"), (int32)CurrentGameState);
-	
-	if (!bWarmupComplete) return;
-	if (CurrentGameState != EGameState::Playing) return;
-	DropBomb();
-}
-
 void AFighterPawn::OnFireRocket(const FInputActionValue& Value)
 {
 	if (!bWarmupComplete) return;
@@ -507,16 +382,6 @@ void AFighterPawn::OnFireRocket(const FInputActionValue& Value)
 void AFighterPawn::OnFireRocketReleased(const FInputActionValue& Value)
 {
 	bFireRocketHeld = false;
-}
-
-void AFighterPawn::OnFreeLookPressed(const FInputActionValue& Value)
-{
-	bFreeLookActive = true;
-}
-
-void AFighterPawn::OnFreeLookReleased(const FInputActionValue& Value)
-{
-	bFreeLookActive = false;
 }
 
 void AFighterPawn::OnVolumeUp(const FInputActionValue& Value)
@@ -543,7 +408,6 @@ void AFighterPawn::OnSensitivityDown(const FInputActionValue& Value)
 	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Sensitivity DOWN -> %.1f"), AimSensitivity);
 }
 
-
 void AFighterPawn::OnPausePressed(const FInputActionValue& Value)
 {
 	if (CurrentGameState == EGameState::Playing)
@@ -559,14 +423,12 @@ void AFighterPawn::OnDebugTestWave(const FInputActionValue& Value)
 
 	UE_LOG(LogTemp, Warning, TEXT("FighterPawn: DEBUG - Destroying all enemies except one of each type"));
 
-	// Find all tanks and keep only one
 	TArray<ATankAI*> AllTanks;
 	for (TActorIterator<ATankAI> It(GetWorld()); It; ++It)
 	{
 		AllTanks.Add(*It);
 	}
 
-	// Destroy all tanks except the first one
 	for (int32 i = 1; i < AllTanks.Num(); i++)
 	{
 		if (AllTanks[i] && AllTanks[i]->IsValidLowLevel())
@@ -575,14 +437,12 @@ void AFighterPawn::OnDebugTestWave(const FInputActionValue& Value)
 		}
 	}
 
-	// Find all helicopters and keep only one
 	TArray<AHeliAI*> AllHelis;
 	for (TActorIterator<AHeliAI> It(GetWorld()); It; ++It)
 	{
 		AllHelis.Add(*It);
 	}
 
-	// Destroy all helicopters except the first one
 	for (int32 i = 1; i < AllHelis.Num(); i++)
 	{
 		if (AllHelis[i] && AllHelis[i]->IsValidLowLevel())
@@ -678,19 +538,6 @@ void AFighterPawn::StartNextWave()
 	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Base HP reset to %d for wave %d"), BaseHP, CurrentWave);
 
 	CurrentGameState = EGameState::Playing;
-	
-	// Reset mouse crosshair to center when game starts
-	if (CurrentWave == 1)
-	{
-		APlayerController* PC = Cast<APlayerController>(Controller);
-		if (PC)
-		{
-			int32 SizeX, SizeY;
-			PC->GetViewportSize(SizeX, SizeY);
-			VirtualCursorPos = FVector2D(SizeX * 0.5f, SizeY * 0.5f);
-			UE_LOG(LogTemp, Log, TEXT("FighterPawn: Mouse crosshair reset to center for game start"));
-		}
-	}
 
 	// Find spawners and trigger them
 	for (TActorIterator<ATankWaveSpawner> It(GetWorld()); It; ++It)
@@ -710,161 +557,59 @@ void AFighterPawn::StartNextWave()
 	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Wave %d started! Tanks: %d, Helis: %d"), CurrentWave, WaveTotalTanks, WaveTotalHelis);
 }
 
-// ==================== Flight Logic ====================
+// ==================== Turret Aim (Mouse Rotation) ====================
 
-void AFighterPawn::UpdateFlight(float DeltaTime)
+void AFighterPawn::UpdateTurretAim(float DeltaTime)
 {
-	FRotator CurrentRotation = GetActorRotation();
+	// Apply raw mouse delta directly to turret rotation for maximum responsiveness
+	// No frame scaling - raw mouse delta is already frame-independent
+	TurretYaw += FrameMouseDeltaX * AimSensitivity;
+	TurretPitch += FrameMouseDeltaY * AimSensitivity;
 
-	// Apply inertia to inputs (smooth response)
-	SmoothedPitchInput = FMath::Lerp(SmoothedPitchInput, PitchInput, 1.0f - PitchInertia);
-	SmoothedYawInput = FMath::Lerp(SmoothedYawInput, YawInput, 1.0f - YawInertia);
+	// Clamp pitch (negative = look down, positive = look up)
+	TurretPitch = FMath::Clamp(TurretPitch, -TurretMinPitch, TurretMaxPitch);
 
-	// --- Pitch (with inertia) ---
-	// Airplane holds its current pitch when no input is pressed.
-	// Only changes when the player actively presses W (tip down) or S (tip up).
-	if (FMath::Abs(SmoothedPitchInput) > 0.01f)
+	FRotator NewRotation(TurretPitch, TurretYaw, 0.0f);
+
+	// Apply rotation to the pawn (360 degree yaw, clamped pitch, no roll)
+	SetActorRotation(NewRotation);
+
+	// Also update controller rotation so cameras with bUsePawnControlRotation follow
+	if (Controller)
 	{
-		float PitchDelta = SmoothedPitchInput * PitchRate * DeltaTime;
-		CurrentRotation.Pitch = FMath::Clamp(CurrentRotation.Pitch + PitchDelta, -MaxPitchAngle, MaxPitchAngle);
-	}
-
-	// --- Yaw (turning with inertia) ---
-	if (FMath::Abs(SmoothedYawInput) > 0.01f)
-	{
-		float YawDelta = SmoothedYawInput * YawRate * DeltaTime;
-		CurrentRotation.Yaw += YawDelta;
-	}
-
-	// --- Roll (visual banking when turning) ---
-	float TargetRoll = YawInput * MaxRollAngle;
-	CurrentRotation.Roll = FMath::FInterpTo(CurrentRotation.Roll, TargetRoll, DeltaTime, RollRate / MaxRollAngle * 5.0f);
-
-	// Apply rotation
-	SetActorRotation(CurrentRotation);
-
-	// --- Speed adjustment based on pitch ---
-	float PitchFactor = -CurrentRotation.Pitch / MaxPitchAngle;
-	float TargetSpeed = DefaultSpeed + (PitchFactor * SpeedChangeRate);
-	TargetSpeed = FMath::Clamp(TargetSpeed, MinSpeed, MaxSpeed);
-	CurrentSpeed = FMath::FInterpTo(CurrentSpeed, TargetSpeed, DeltaTime, 2.0f);
-
-	// --- Movement ---
-	FVector ForwardDirection = GetActorForwardVector();
-	FVector RightDirection = GetActorRightVector();
-	
-	// Decay slide velocity when not pressing keys
-	if (FMath::Abs(SlideVelocity.Y) > 0.01f)
-	{
-		float DecayAmount = SlideDecayRate * DeltaTime;
-		if (SlideVelocity.Y > 0.0f)
-		{
-			SlideVelocity.Y = FMath::Max(0.0f, SlideVelocity.Y - DecayAmount);
-		}
-		else
-		{
-			SlideVelocity.Y = FMath::Min(0.0f, SlideVelocity.Y + DecayAmount);
-		}
-	}
-	else
-	{
-		SlideVelocity.Y = 0.0f;
-	}
-	
-	// Calculate movement
-	FVector Movement = (ForwardDirection * CurrentSpeed * DeltaTime) + (RightDirection * SlideVelocity.Y * DeltaTime);
-	FVector NewLocation = GetActorLocation() + Movement;
-
-	// Enforce minimum altitude
-	if (NewLocation.Z < MinAltitude)
-	{
-		NewLocation.Z = MinAltitude;
-		if (CurrentRotation.Pitch < -5.0f)
-		{
-			CurrentRotation.Pitch = FMath::FInterpTo(CurrentRotation.Pitch, 0.0f, DeltaTime, LevelingSpeed * 2.0f);
-			SetActorRotation(CurrentRotation);
-		}
-	}
-
-	SetActorLocation(NewLocation);
-}
-
-// ==================== Virtual Cursor (Zero-Lag) ====================
-
-void AFighterPawn::UpdateVirtualCursor(float DeltaTime)
-{
-	// During free-look, mouse moves the camera, not the crosshair
-	if (bFreeLookActive) return;
-
-	APlayerController* PC = Cast<APlayerController>(Controller);
-	if (!PC) return;
-
-	// Frame-time independent mouse movement for consistent feel at any framerate
-	// Use 60fps as baseline (1/60 = 0.0167) to normalize movement
-	float FrameScale = DeltaTime * 60.0f;
-	
-	// Apply mouse delta with sensitivity and frame scaling
-	// Negate Y: UE positive DeltaY = mouse up, but screen Y increases down
-	VirtualCursorPos.X += FrameMouseDeltaX * AimSensitivity * FrameScale;
-	VirtualCursorPos.Y -= FrameMouseDeltaY * AimSensitivity * FrameScale;
-
-	// Clamp to viewport bounds
-	int32 SizeX, SizeY;
-	PC->GetViewportSize(SizeX, SizeY);
-	VirtualCursorPos.X = FMath::Clamp(VirtualCursorPos.X, 0.0f, static_cast<float>(SizeX));
-	VirtualCursorPos.Y = FMath::Clamp(VirtualCursorPos.Y, 0.0f, static_cast<float>(SizeY));
-}
-
-// ==================== Free-Look Camera ====================
-
-void AFighterPawn::UpdateFreeLook(float DeltaTime)
-{
-	if (!CameraPivot) return;
-
-	if (bFreeLookActive)
-	{
-		// Frame-time independent free-look movement
-		float FrameScale = DeltaTime * 60.0f;
-		
-		// Use FreeLookSensitivity directly (degrees per pixel) with frame scaling
-		FreeLookRotation.Yaw += FrameMouseDeltaX * FreeLookSensitivity * FrameScale;
-		FreeLookRotation.Pitch += FrameMouseDeltaY * FreeLookSensitivity * FrameScale;
-
-		// Clamp free-look angles
-		FreeLookRotation.Yaw = FMath::Clamp(FreeLookRotation.Yaw, -FreeLookMaxYaw, FreeLookMaxYaw);
-		FreeLookRotation.Pitch = FMath::Clamp(FreeLookRotation.Pitch, -FreeLookMaxPitch, FreeLookMaxPitch);
-
-		CameraPivot->SetRelativeRotation(FreeLookRotation);
-	}
-	else
-	{
-		// Smoothly return camera to forward position
-		if (!FreeLookRotation.IsNearlyZero(0.1f))
-		{
-			FreeLookRotation = FMath::RInterpTo(FreeLookRotation, FRotator::ZeroRotator, DeltaTime, FreeLookReturnSpeed);
-			CameraPivot->SetRelativeRotation(FreeLookRotation);
-		}
-		else if (!FreeLookRotation.IsZero())
-		{
-			FreeLookRotation = FRotator::ZeroRotator;
-			CameraPivot->SetRelativeRotation(FRotator::ZeroRotator);
-		}
+		Controller->SetControlRotation(NewRotation);
 	}
 }
 
-// ==================== Mouse Aim (White Crosshair) ====================
+// ==================== Turret Height (Q/E Keys) ====================
+
+void AFighterPawn::UpdateTurretHeight(float DeltaTime)
+{
+	if (FMath::Abs(HeightInput) < 0.01f) return;
+
+	FVector CurrentLocation = GetActorLocation();
+	float NewZ = CurrentLocation.Z + HeightInput * HeightChangeSpeed * DeltaTime;
+	NewZ = FMath::Clamp(NewZ, MinTurretHeight, MaxTurretHeight);
+
+	// Keep X and Y fixed at 0
+	SetActorLocation(FVector(0.0f, 0.0f, NewZ));
+}
+
+// ==================== Mouse Aim (Center Screen Raycast) ====================
 
 void AFighterPawn::UpdateMouseAim()
 {
 	APlayerController* PC = Cast<APlayerController>(Controller);
 	if (!PC) return;
 
-	// Always deproject VirtualCursorPos through the current camera.
-	// During free-look the cursor is frozen on screen but the camera rotates,
-	// so the same screen position aims in a new world direction — this lets
-	// the player aim the rocket turret by looking around.
+	// Deproject from screen center (crosshair is always centered)
+	int32 SizeX, SizeY;
+	PC->GetViewportSize(SizeX, SizeY);
+	float CenterX = SizeX * 0.5f;
+	float CenterY = SizeY * 0.5f;
+
 	FVector WorldLocation, WorldDirection;
-	PC->DeprojectScreenPositionToWorld(VirtualCursorPos.X, VirtualCursorPos.Y, WorldLocation, WorldDirection);
+	PC->DeprojectScreenPositionToWorld(CenterX, CenterY, WorldLocation, WorldDirection);
 
 	FVector TraceStart = WorldLocation;
 	FVector TraceEnd = WorldLocation + (WorldDirection * CrosshairMaxDistance);
@@ -883,139 +628,7 @@ void AFighterPawn::UpdateMouseAim()
 	}
 }
 
-// ==================== Bomb Impact Prediction (Red Crosshair) ====================
-
-void AFighterPawn::UpdateBombImpactPrediction()
-{
-	/*
-	 * Predict where a bomb dropped NOW would land.
-	 *
-	 * The bomb inherits the airplane's velocity plus additional forward speed and then falls under gravity.
-	 *   Total forward velocity = airplane forward * (CurrentSpeed + BombDropSpeed + BombHorizontalSpeed)
-	 *   Vertical component  = velocity.Z * CurrentSpeed (initial)
-	 *                         + 0.5 * g * t^2 (gravity pulls it down)
-	 *
-	 * We solve for t when Z reaches ground (Z = 0) using the quadratic formula,
-	 * then compute the XY position at that time.
-	 */
-
-	FVector BombOrigin = GetActorLocation() + GetActorTransform().TransformVector(BombSpawnOffset);
-	
-	// Calculate total bomb velocity with additional forward speed
-	FVector Velocity = GetActorForwardVector() * (CurrentSpeed + BombDropSpeed + BombHorizontalSpeed);
-
-	float Vz = Velocity.Z;
-	float H = BombOrigin.Z; // height above ground (ground = Z 0)
-
-	// Quadratic: 0.5*g*t^2 - Vz*t - H = 0  (solving for when altitude = 0)
-	// Using: z(t) = H + Vz*t - 0.5*g*t^2 = 0
-	// => 0.5*g*t^2 - Vz*t - H = 0
-	float a = 0.5f * BombGravity;
-	float b = -Vz;
-	float c = -H;
-
-	float Discriminant = b * b - 4.0f * a * c;
-
-	if (Discriminant < 0.0f)
-	{
-		// No solution (shouldn't happen if we're above ground)
-		bBombImpactValid = false;
-		return;
-	}
-
-	float SqrtDisc = FMath::Sqrt(Discriminant);
-	float t1 = (-b + SqrtDisc) / (2.0f * a);
-	float t2 = (-b - SqrtDisc) / (2.0f * a);
-
-	// We want the positive root (future time)
-	float FallTime = (t1 > 0.0f) ? t1 : t2;
-	if (FallTime <= 0.0f)
-	{
-		bBombImpactValid = false;
-		return;
-	}
-
-	// Predicted impact position (horizontal movement is constant velocity)
-	FVector ImpactPos;
-	ImpactPos.X = BombOrigin.X + Velocity.X * FallTime;
-	ImpactPos.Y = BombOrigin.Y + Velocity.Y * FallTime;
-	ImpactPos.Z = 0.0f; // ground level
-
-	// Raycast down from predicted position to find actual terrain height
-	FVector TraceStart = FVector(ImpactPos.X, ImpactPos.Y, BombOrigin.Z + 1000.0f);
-	FVector TraceEnd = FVector(ImpactPos.X, ImpactPos.Y, -10000.0f);
-
-	FHitResult HitResult;
-	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(this);
-
-	if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
-	{
-		BombImpactPoint = HitResult.ImpactPoint;
-		bBombImpactValid = true;
-	}
-	else
-	{
-		// No terrain found, use flat ground estimate
-		BombImpactPoint = ImpactPos;
-		bBombImpactValid = true;
-	}
-}
-
 // ==================== Weapons ====================
-
-void AFighterPawn::DropBomb()
-{
-	UE_LOG(LogTemp, Warning, TEXT("FighterPawn: DropBomb called"));
-	
-	if (!BombClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("FighterPawn: No BombClass assigned!"));
-		return;
-	}
-
-	float CurrentTime = GetWorld()->GetTimeSeconds();
-	if (CurrentTime - LastBombDropTime < BombCooldown) return;
-	LastBombDropTime = CurrentTime;
-
-	FVector SpawnLocation = GetActorLocation() + GetActorTransform().TransformVector(BombSpawnOffset);
-	FRotator SpawnRotation = GetActorRotation();
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.Owner = this;
-
-	AActor* Bomb = GetWorld()->SpawnActor<AActor>(BombClass, SpawnLocation, SpawnRotation, SpawnParams);
-
-	if (Bomb)
-	{
-		UPrimitiveComponent* BombPrimitive = Cast<UPrimitiveComponent>(Bomb->GetRootComponent());
-		if (!BombPrimitive)
-		{
-			BombPrimitive = Bomb->FindComponentByClass<UPrimitiveComponent>();
-		}
-
-		if (BombPrimitive)
-		{
-			BombPrimitive->SetSimulatePhysics(true);
-			BombPrimitive->SetEnableGravity(true);
-
-			// Calculate bomb velocity with additional forward speed for distant targets
-			FVector ForwardVelocity = GetActorForwardVector() * (CurrentSpeed + BombDropSpeed + BombHorizontalSpeed);
-			FVector TotalBombVelocity = ForwardVelocity;
-			
-			BombPrimitive->SetPhysicsLinearVelocity(TotalBombVelocity);
-		}
-
-		// Play bomb release sound
-		if (BombDropSound)
-		{
-			UGameplayStatics::PlaySoundAtLocation(this, BombDropSound, SpawnLocation, SoundVolume);
-		}
-
-		UE_LOG(LogTemp, Log, TEXT("FighterPawn: Bomb dropped at %s with speed %.0f"), *SpawnLocation.ToString(), CurrentSpeed);
-	}
-}
 
 void AFighterPawn::FireRocket()
 {
@@ -1103,49 +716,47 @@ void AFighterPawn::OnEnemyDestroyed(AActor* DestroyedActor)
 
 void AFighterPawn::ConfigureLandscapeStreaming()
 {
-	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Configuring landscape streaming (distance=%.0f)"), LandscapeStreamingDistance);
-
-	UWorld* World = GetWorld();
-	if (!World) return;
-
-	// Override the World Partition streaming source distances on the player controller
-	// This tells the engine to load cells much further ahead of the player
-	if (APlayerController* PC = Cast<APlayerController>(Controller))
-	{
-		PC->bEnableStreamingSource = true;
-		PC->StreamingSourceDebugColor = FColor::Green;
-	}
-
-	// Set landscape LOD bias via console variable — forces higher detail at distance
-	// Negative values = prefer more detailed LODs, reducing mountain pop-in
-	if (IConsoleVariable* LandscapeLODBias = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LandscapeLODBias")))
-	{
-		LandscapeLODBias->Set(-2);
-		UE_LOG(LogTemp, Log, TEXT("FighterPawn: Set r.LandscapeLODBias = -2"));
-	}
-
-	// Increase landscape LOD distribution scale for smoother transitions at distance
-	if (IConsoleVariable* LODDistScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LandscapeLODDistributionScale")))
-	{
-		LODDistScale->Set(3.0f);
-		UE_LOG(LogTemp, Log, TEXT("FighterPawn: Set r.LandscapeLODDistributionScale = 3.0"));
-	}
-
-	// Force all existing landscape proxies to stay visible
-	for (TActorIterator<ALandscapeProxy> It(World); It; ++It)
-	{
-		ALandscapeProxy* Landscape = *It;
-		if (Landscape)
-		{
-			Landscape->SetActorEnableCollision(true);
-			Landscape->SetHidden(false);
-			UE_LOG(LogTemp, Log, TEXT("FighterPawn: Configured landscape: %s"), *Landscape->GetName());
-		}
-	}
+	// Disabled for turret mode — not needed at low altitude and caused crashes
+	// (EXCEPTION_ACCESS_VIOLATION in UnrealEditor_Landscape during BeginPlay)
 }
 
 void AFighterPawn::UpdateLandscapeStreaming()
 {
 	// This can be called from Tick if needed for dynamic streaming updates
 	// For now, the initial configuration should be sufficient for most cases
+}
+
+// ==================== Mouse Wheel Zoom ====================
+
+void AFighterPawn::OnMouseWheelZoomIn(const FInputActionValue& Value)
+{
+	CurrentZoomLevel = FMath::Clamp(CurrentZoomLevel + MouseWheelZoomSpeed, MinZoomLevel, MaxZoomLevel);
+	ApplyZoomToCamera();
+	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Zoom IN -> %.1fx"), CurrentZoomLevel);
+}
+
+void AFighterPawn::OnMouseWheelZoomOut(const FInputActionValue& Value)
+{
+	CurrentZoomLevel = FMath::Clamp(CurrentZoomLevel - MouseWheelZoomSpeed, MinZoomLevel, MaxZoomLevel);
+	ApplyZoomToCamera();
+	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Zoom OUT -> %.1fx"), CurrentZoomLevel);
+}
+
+void AFighterPawn::ApplyZoomToCamera()
+{
+	// Apply zoom to all camera components by adjusting FOV
+	TArray<UCameraComponent*> Cameras;
+	GetComponents<UCameraComponent>(Cameras);
+	
+	for (UCameraComponent* Cam : Cameras)
+	{
+		// Default FOV is typically 90 degrees
+		float DefaultFOV = 90.0f;
+		float NewFOV = DefaultFOV / CurrentZoomLevel;
+		
+		// Clamp FOV to reasonable values (10-120 degrees)
+		NewFOV = FMath::Clamp(NewFOV, 10.0f, 120.0f);
+		
+		Cam->SetFieldOfView(NewFOV);
+	}
 }

@@ -81,6 +81,9 @@ public:
 	/** Set the rate of fire (seconds between shots) */
 	void SetRateOfFire(float Rate);
 
+	/** Set lateral dancing parameters */
+	void SetLateralDanceSettings(float DanceDistance, float MinSpeed, float MaxSpeed, float MinTime, float MaxTime);
+
 	/** Get current move speed */
 	UFUNCTION(BlueprintPure, Category = "Helicopter Movement")
 	float GetMoveSpeed() const { return MoveSpeed; }
@@ -105,8 +108,46 @@ private:
 	/** Timer counting down to next shot */
 	float FireTimer = 0.0f;
 
+	// ==================== Lateral Dancing State ====================
+
+	/** Distance from base where lateral dancing begins */
+	float LateralDanceDistance = 1000.0f;
+
+	/** Minimum lateral speed (units/sec) */
+	float LateralMinSpeed = 100.0f;
+
+	/** Maximum lateral speed (units/sec) */
+	float LateralMaxSpeed = 400.0f;
+
+	/** Minimum time moving in one lateral direction (seconds) */
+	float LateralMinTime = 0.5f;
+
+	/** Maximum time moving in one lateral direction (seconds) */
+	float LateralMaxTime = 2.0f;
+
+	/** Whether lateral dancing is currently active */
+	bool bIsDancing = false;
+
+	/** Current lateral direction: 1 = left, -1 = right */
+	int32 LateralDirection = 1;
+
+	/** Current lateral speed for this dance leg */
+	float CurrentLateralSpeed = 0.0f;
+
+	/** Timer counting down until next direction change */
+	float LateralTimer = 0.0f;
+
+	/** The lateral axis (perpendicular to approach direction) */
+	FVector LateralAxis = FVector::ZeroVector;
+
 	/** Move the helicopter toward target */
 	void MoveTowardTarget(float DeltaTime);
+
+	/** Perform lateral dancing movement */
+	void UpdateLateralDance(float DeltaTime);
+
+	/** Pick a new random lateral direction, speed, and duration */
+	void PickNewLateralLeg();
 
 	/** Smoothly rotate toward target */
 	void RotateTowardTarget(float DeltaTime);

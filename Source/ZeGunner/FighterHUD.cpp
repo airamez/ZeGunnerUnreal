@@ -46,53 +46,21 @@ void AFighterHUD::DrawHUD()
 		return;
 	}
 
-	// ==================== RED Bomb Impact Crosshair ====================
+	// ==================== WHITE Rocket Crosshair (always centered) ====================
 	{
-		FVector BombImpact = Fighter->GetBombImpactPoint();
+		float CX = Canvas->SizeX * 0.5f;
+		float CY = Canvas->SizeY * 0.5f;
 
-		// Project world point to screen
-		FVector2D ScreenPos;
-		if (PC->ProjectWorldLocationToScreen(BombImpact, ScreenPos, true))
-		{
-			// Draw circle crosshair
-			DrawCircle(ScreenPos.X, ScreenPos.Y, BombCrosshairRadius, BombCircleSegments, BombCrosshairColor, BombCrosshairThickness);
-
-			// Draw inner cross lines through the circle
-			float HalfSize = BombCrosshairRadius * 0.6f;
-			FLinearColor Col = BombCrosshairColor;
-			float T = BombCrosshairThickness;
-
-			// Horizontal line
-			Canvas->K2_DrawLine(
-				FVector2D(ScreenPos.X - HalfSize, ScreenPos.Y),
-				FVector2D(ScreenPos.X + HalfSize, ScreenPos.Y),
-				T, Col);
-
-			// Vertical line
-			Canvas->K2_DrawLine(
-				FVector2D(ScreenPos.X, ScreenPos.Y - HalfSize),
-				FVector2D(ScreenPos.X, ScreenPos.Y + HalfSize),
-				T, Col);
-		}
-	}
-
-	// ==================== WHITE Rocket Aim Crosshair (virtual cursor) ====================
-	{
-		FVector2D CursorPos = Fighter->GetCursorScreenPosition();
-
-		DrawCrosshairPlus(CursorPos.X, CursorPos.Y, RocketCrosshairSize, RocketCrosshairGap, RocketCrosshairColor, RocketCrosshairThickness);
+		DrawCrosshairPlus(CX, CY, RocketCrosshairSize, RocketCrosshairGap, RocketCrosshairColor, RocketCrosshairThickness);
 
 		// Center dot
 		if (RocketCenterDotRadius > 0.0f)
 		{
-			DrawCircle(CursorPos.X, CursorPos.Y, RocketCenterDotRadius, 8, RocketCrosshairColor, RocketCrosshairThickness);
+			DrawCircle(CX, CY, RocketCenterDotRadius, 8, RocketCrosshairColor, RocketCrosshairThickness);
 		}
 	}
 
-	// ==================== Jet HUD Overlay ====================
-	DrawJetHUD(Fighter);
-
-	// ==================== Speed & Altitude (center) ====================
+	// ==================== Altitude (center-right) ====================
 	DrawSpeedAltitude(Fighter);
 
 	// ==================== HUD Text & Radar ====================
@@ -161,7 +129,7 @@ void AFighterHUD::DrawSettingsInfo(AFighterPawn* Fighter)
 	// Build text strings first so we can measure them
 	int32 VolPercent = FMath::RoundToInt(Fighter->GetSoundVolume() * 100.0f);
 	FString VolText = FString::Printf(TEXT("Volume: %d%%"), VolPercent);
-	FString SensText = FString::Printf(TEXT("Sensitivity: %.1f"), Fighter->GetAimSensitivity());
+	FString SensText = FString::Printf(TEXT("Sensitivity: %.1f"), Fighter->GetAimSensitivityDisplay());
 	
 	// Add FPS text if enabled
 	FString FpsText;
@@ -287,26 +255,10 @@ void AFighterHUD::DrawSpeedAltitude(AFighterPawn* Fighter)
 	float CX = Canvas->SizeX * 0.5f;
 	float CY = Canvas->SizeY * 0.5f;
 
-	FLinearColor SpeedColor(0.3f, 1.0f, 0.5f, 0.9f);
-	FLinearColor AltColor(0.3f, 1.0f, 0.5f, 0.9f); // Same as speed
+	FLinearColor AltColor(0.3f, 1.0f, 0.5f, 0.9f);
 	FLinearColor LabelColor(0.7f, 0.7f, 0.7f, 0.7f);
 	float ValueScale = 1.6f;
 	float LabelScale = 0.85f;
-
-	// Speed on the left side of center
-	float SpeedX = CX - 200.0f;
-	FString SpeedVal = FString::Printf(TEXT("%.0f"), Fighter->GetCurrentSpeed());
-	FCanvasTextItem SpeedItem(FVector2D(SpeedX, CY - 12.0f), FText::FromString(SpeedVal), HUDFont, SpeedColor);
-	SpeedItem.Scale = FVector2D(ValueScale, ValueScale);
-	SpeedItem.bOutlined = true;
-	SpeedItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
-	Canvas->DrawItem(SpeedItem);
-
-	FCanvasTextItem SpeedLabel(FVector2D(SpeedX, CY + 18.0f), FText::FromString(TEXT("SPD")), HUDFont, LabelColor);
-	SpeedLabel.Scale = FVector2D(LabelScale, LabelScale);
-	SpeedLabel.bOutlined = true;
-	SpeedLabel.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.4f);
-	Canvas->DrawItem(SpeedLabel);
 
 	// Altitude on the right side of center
 	float AltX = CX + 150.0f;
@@ -477,136 +429,11 @@ void AFighterHUD::DrawRadar(AFighterPawn* Fighter)
 	}
 }
 
-// ==================== Jet Fighter HUD Overlay ====================
+// ==================== Jet Fighter HUD Overlay (Legacy - not used in turret mode) ====================
 
 void AFighterHUD::DrawJetHUD(AFighterPawn* Fighter)
 {
-	if (!Canvas || !Fighter || !HUDFont) return;
-
-	float CX = Canvas->SizeX * 0.5f;
-	float CY = Canvas->SizeY * 0.5f;
-
-	FRotator Rot = Fighter->GetActorRotation();
-	float PitchDeg = Rot.Pitch;
-	float RollRad = FMath::DegreesToRadians(Rot.Roll);
-	float YawDeg = Rot.Yaw;
-	if (YawDeg < 0.0f) YawDeg += 360.0f;
-
-	float CosR = FMath::Cos(RollRad);
-	float SinR = FMath::Sin(RollRad);
-
-	// Helper lambda: rotate a point around screen center by roll angle
-	auto RotatePoint = [&](float X, float Y) -> FVector2D
-	{
-		float RX = X * CosR - Y * SinR;
-		float RY = X * SinR + Y * CosR;
-		return FVector2D(CX + RX, CY + RY);
-	};
-
-	float HW = HorizonLineWidth;
-	float LadderHalfW = PitchLadderWidth * 0.5f;
-	float GapHalfW = 15.0f;
-
-	// ---- Horizon Line ----
-	float HorizonOffset = PitchDeg * PitchPixelsPerDegree;
-	FVector2D HL = RotatePoint(-HW, HorizonOffset);
-	FVector2D HR = RotatePoint(HW, HorizonOffset);
-	Canvas->K2_DrawLine(HL, HR, JetHUDThickness + 0.5f, JetHUDColor);
-
-	// Small ticks at horizon ends
-	FVector2D HLT = RotatePoint(-HW, HorizonOffset - 6.0f);
-	FVector2D HRT = RotatePoint(HW, HorizonOffset - 6.0f);
-	Canvas->K2_DrawLine(HL, HLT, JetHUDThickness, JetHUDColor);
-	Canvas->K2_DrawLine(HR, HRT, JetHUDThickness, JetHUDColor);
-
-	// ---- Pitch Ladder (only ±10 and ±20 = 4 lines total) ----
-	for (int32 Deg = -PitchLadderRange; Deg <= PitchLadderRange; Deg += PitchLadderStep)
-	{
-		if (Deg == 0) continue;
-
-		float YOff = (PitchDeg - static_cast<float>(Deg)) * PitchPixelsPerDegree;
-		if (FMath::Abs(YOff) > CY * 0.7f) continue;
-
-		bool bNeg = (Deg < 0);
-		FLinearColor LineColor = bNeg ? JetHUDDimColor : JetHUDColor;
-
-		if (bNeg)
-		{
-			// Dashed line for below horizon
-			float SegLen = (LadderHalfW - GapHalfW) * 0.4f;
-			float SegGap = (LadderHalfW - GapHalfW) * 0.2f;
-			for (int32 d = 0; d < 2; d++)
-			{
-				float S = GapHalfW + d * (SegLen + SegGap);
-				float E = S + SegLen;
-				Canvas->K2_DrawLine(RotatePoint(-E, YOff), RotatePoint(-S, YOff), JetHUDThickness, LineColor);
-				Canvas->K2_DrawLine(RotatePoint(S, YOff), RotatePoint(E, YOff), JetHUDThickness, LineColor);
-			}
-		}
-		else
-		{
-			// Solid line for above horizon (with center gap)
-			Canvas->K2_DrawLine(RotatePoint(-LadderHalfW, YOff), RotatePoint(-GapHalfW, YOff), JetHUDThickness, LineColor);
-			Canvas->K2_DrawLine(RotatePoint(GapHalfW, YOff), RotatePoint(LadderHalfW, YOff), JetHUDThickness, LineColor);
-		}
-
-		// Small end ticks (up for positive, down for negative)
-		float TickDir = bNeg ? 4.0f : -4.0f;
-		Canvas->K2_DrawLine(RotatePoint(-LadderHalfW, YOff), RotatePoint(-LadderHalfW, YOff + TickDir), JetHUDThickness, LineColor);
-		Canvas->K2_DrawLine(RotatePoint(LadderHalfW, YOff), RotatePoint(LadderHalfW, YOff + TickDir), JetHUDThickness, LineColor);
-
-		// Degree label (right side only, compact)
-		FString DegStr = FString::Printf(TEXT("%d"), Deg);
-		FVector2D LabelPos = RotatePoint(LadderHalfW + 5.0f, YOff - 5.0f);
-		FCanvasTextItem Label(LabelPos, FText::FromString(DegStr), HUDFont, LineColor);
-		Label.Scale = FVector2D(0.55f, 0.55f);
-		Label.bOutlined = true;
-		Label.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.4f);
-		Canvas->DrawItem(Label);
-	}
-
-	// ---- Aircraft Reference Symbol (fixed at center) ----
-	float WingW = 18.0f;
-	float WingGap = 6.0f;
-
-	Canvas->K2_DrawLine(FVector2D(CX - WingGap, CY), FVector2D(CX - WingGap - WingW, CY), JetHUDThickness + 0.5f, JetHUDColor);
-	Canvas->K2_DrawLine(FVector2D(CX - WingGap - WingW, CY), FVector2D(CX - WingGap - WingW, CY + 4.0f), JetHUDThickness + 0.5f, JetHUDColor);
-	Canvas->K2_DrawLine(FVector2D(CX + WingGap, CY), FVector2D(CX + WingGap + WingW, CY), JetHUDThickness + 0.5f, JetHUDColor);
-	Canvas->K2_DrawLine(FVector2D(CX + WingGap + WingW, CY), FVector2D(CX + WingGap + WingW, CY + 4.0f), JetHUDThickness + 0.5f, JetHUDColor);
-	DrawCircle(CX, CY, 2.0f, 6, JetHUDColor, JetHUDThickness);
-
-	// ---- Compact Heading Text (just above the ladder) ----
-	{
-		int32 Heading = FMath::RoundToInt32(YawDeg) % 360;
-		if (Heading < 0) Heading += 360;
-		FString HdgStr = FString::Printf(TEXT("HDG %03d"), Heading);
-		float TextX = CX - 22.0f;
-		float TextY = CY - HW * 0.6f - 14.0f;
-		FCanvasTextItem HdgTxt(FVector2D(TextX, TextY), FText::FromString(HdgStr), HUDFont, JetHUDDimColor);
-		HdgTxt.Scale = FVector2D(0.55f, 0.55f);
-		HdgTxt.bOutlined = true;
-		HdgTxt.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.4f);
-		Canvas->DrawItem(HdgTxt);
-	}
-
-	// ---- Compact Speed & Altitude (left and right of ladder) ----
-	{
-		int32 SpeedKnots = FMath::RoundToInt32(Fighter->GetCurrentSpeed() * 0.0194384f);
-		FString SpdStr = FString::Printf(TEXT("%d"), SpeedKnots);
-		FCanvasTextItem SpdTxt(FVector2D(CX - HW - 40.0f, CY - 7.0f), FText::FromString(SpdStr), HUDFont, JetHUDColor);
-		SpdTxt.Scale = FVector2D(0.65f, 0.65f);
-		SpdTxt.bOutlined = true;
-		SpdTxt.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.4f);
-		Canvas->DrawItem(SpdTxt);
-
-		int32 AltFeet = FMath::RoundToInt32(Fighter->GetActorLocation().Z * 0.0328084f);
-		FString AltStr = FString::Printf(TEXT("%d"), AltFeet);
-		FCanvasTextItem AltTxt(FVector2D(CX + HW + 10.0f, CY - 7.0f), FText::FromString(AltStr), HUDFont, JetHUDColor);
-		AltTxt.Scale = FVector2D(0.65f, 0.65f);
-		AltTxt.bOutlined = true;
-		AltTxt.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.4f);
-		Canvas->DrawItem(AltTxt);
-	}
+	// Not used in turret mode
 }
 
 // ==================== Game Screen Overlays ====================

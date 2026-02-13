@@ -83,8 +83,30 @@ void AHeliAI::Tick(float DeltaTime)
 		return;
 	}
 
+	// Check if we should start lateral dancing (within dance distance of target)
+	if (!bIsDancing && LateralDanceDistance > 0.0f)
+	{
+		float DistToTarget = FVector::Dist2D(GetActorLocation(), TargetLocation);
+		if (DistToTarget <= LateralDanceDistance && DistToTarget > StoppingDistance)
+		{
+			bIsDancing = true;
+			// Calculate lateral axis (perpendicular to approach direction, in XY plane)
+			FVector ToTarget = (TargetLocation - GetActorLocation()).GetSafeNormal2D();
+			LateralAxis = FVector(-ToTarget.Y, ToTarget.X, 0.0f); // 90-degree rotation in XY
+			PickNewLateralLeg();
+			UE_LOG(LogTemp, Log, TEXT("HeliAI: Started lateral dancing at dist %.0f"), DistToTarget);
+		}
+	}
+
 	// Move and rotate toward target
 	MoveTowardTarget(DeltaTime);
+
+	// Apply lateral dancing if active
+	if (bIsDancing && !HasReachedTarget())
+	{
+		UpdateLateralDance(DeltaTime);
+	}
+
 	RotateTowardTarget(DeltaTime);
 
 	// Fire at base when stopped at line of fire
@@ -153,6 +175,15 @@ void AHeliAI::SetRateOfFire(float Rate)
 	RateOfFire = FMath::Max(0.1f, Rate);
 }
 
+void AHeliAI::SetLateralDanceSettings(float DanceDistance, float MinSpeed, float MaxSpeed, float MinTime, float MaxTime)
+{
+	LateralDanceDistance = DanceDistance;
+	LateralMinSpeed = MinSpeed;
+	LateralMaxSpeed = MaxSpeed;
+	LateralMinTime = MinTime;
+	LateralMaxTime = MaxTime;
+}
+
 bool AHeliAI::HasReachedTarget() const
 {
 	if (!bTargetSet)
@@ -216,6 +247,34 @@ void AHeliAI::RotateTowardTarget(float DeltaTime)
 	// Smoothly interpolate toward target rotation (only Yaw)
 	float NewYaw = FMath::FInterpTo(CurrentRotation.Yaw, TargetRotation.Yaw, DeltaTime, RotationSpeed);
 	SetActorRotation(FRotator(0.0f, NewYaw, 0.0f));
+}
+
+void AHeliAI::UpdateLateralDance(float DeltaTime)
+{
+	// Count down timer
+	LateralTimer -= DeltaTime;
+	if (LateralTimer <= 0.0f)
+	{
+		PickNewLateralLeg();
+	}
+
+	// Move laterally
+	FVector CurrentLocation = GetActorLocation();
+	FVector LateralOffset = LateralAxis * LateralDirection * CurrentLateralSpeed * DeltaTime;
+	LateralOffset.Z = 0.0f;
+	FVector NewLocation = CurrentLocation + LateralOffset;
+	NewLocation.Z = FlyHeight;
+	SetActorLocation(NewLocation);
+}
+
+void AHeliAI::PickNewLateralLeg()
+{
+	// Flip direction
+	LateralDirection = -LateralDirection;
+
+	// Random speed and duration for this leg
+	CurrentLateralSpeed = FMath::FRandRange(LateralMinSpeed, LateralMaxSpeed);
+	LateralTimer = FMath::FRandRange(LateralMinTime, LateralMaxTime);
 }
 
 bool AHeliAI::IsGamePaused() const

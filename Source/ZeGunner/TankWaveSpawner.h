@@ -42,13 +42,31 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Spawning", meta = (ClampMin = "100.0"))
 	float SpawnRadius = 2000.0f;
 
-	/** Minimum tank speed */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Spawning", meta = (ClampMin = "0.0"))
-	float MinTankSpeed = 100.0f;
+	// ==================== Wave Speed Scaling ====================
 
-	/** Maximum tank speed */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Spawning", meta = (ClampMin = "0.0"))
-	float MaxTankSpeed = 300.0f;
+	/** Minimum tank speed on wave 1 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Speed", meta = (ClampMin = "0.0"))
+	float InitialMinSpeed = 100.0f;
+
+	/** Maximum tank speed on wave 1 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Speed", meta = (ClampMin = "0.0"))
+	float InitialMaxSpeed = 300.0f;
+
+	/** Absolute cap for minimum speed (min speed cannot exceed this across waves) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Speed", meta = (ClampMin = "0.0"))
+	float MaxPossibleMinSpeed = 400.0f;
+
+	/** Absolute cap for maximum speed (max speed cannot exceed this across waves) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Speed", meta = (ClampMin = "0.0"))
+	float MaxPossibleMaxSpeed = 800.0f;
+
+	/** How much the minimum speed increases per wave */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Speed", meta = (ClampMin = "0.0"))
+	float MinSpeedIncrementPerWave = 15.0f;
+
+	/** How much the maximum speed increases per wave */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Speed", meta = (ClampMin = "0.0"))
+	float MaxSpeedIncrementPerWave = 30.0f;
 
 	/** Number of tanks to spawn in the first wave */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Spawning", meta = (ClampMin = "1"))

@@ -79,10 +79,12 @@ void AHeliWaveSpawner::SpawnWave()
 
 		if (SpawnedHeli)
 		{
-			// Assign random speed
-			float RandomSpeed = FMath::FRandRange(MinHeliSpeed, MaxHeliSpeed);
+			// Calculate wave-scaled speed range
+			float WaveMinSpeed = FMath::Min(InitialMinSpeed + (CurrentWave - 1) * MinSpeedIncrementPerWave, MaxPossibleMinSpeed);
+			float WaveMaxSpeed = FMath::Min(InitialMaxSpeed + (CurrentWave - 1) * MaxSpeedIncrementPerWave, MaxPossibleMaxSpeed);
+			float RandomSpeed = FMath::FRandRange(WaveMinSpeed, WaveMaxSpeed);
 
-			// If it's our HeliAI class, set the target, speed, stopping distance, mesh rotation, and fly height
+			// If it's our HeliAI class, set the target, speed, stopping distance, mesh rotation, fly height, and lateral dancing
 			if (AHeliAI* HeliAI = Cast<AHeliAI>(SpawnedHeli))
 			{
 				HeliAI->SetMoveSpeed(RandomSpeed);
@@ -90,6 +92,7 @@ void AHeliWaveSpawner::SpawnWave()
 				HeliAI->SetMeshRotation(MeshRotationOffset);
 				HeliAI->SetFlyHeight(SpawnLocation.Z); // Use the spawned height
 				HeliAI->SetRateOfFire(RateOfFire);
+				HeliAI->SetLateralDanceSettings(LateralDanceDistance, MinLateralSpeed, MaxLateralSpeed, MinLateralTime, MaxLateralTime);
 				HeliAI->SetTargetLocation(TargetLocation);
 			}
 

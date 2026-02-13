@@ -79,8 +79,10 @@ void ATankWaveSpawner::SpawnWave()
 		
 		if (SpawnedTank)
 		{
-			// Assign random speed
-			float RandomSpeed = FMath::FRandRange(MinTankSpeed, MaxTankSpeed);
+			// Calculate wave-scaled speed range
+			float WaveMinSpeed = FMath::Min(InitialMinSpeed + (CurrentWave - 1) * MinSpeedIncrementPerWave, MaxPossibleMinSpeed);
+			float WaveMaxSpeed = FMath::Min(InitialMaxSpeed + (CurrentWave - 1) * MaxSpeedIncrementPerWave, MaxPossibleMaxSpeed);
+			float RandomSpeed = FMath::FRandRange(WaveMinSpeed, WaveMaxSpeed);
 			
 			// If it's our TankAI class, set the target, speed, stopping distance, mesh rotation, and zigzag settings
 			if (ATankAI* TankAI = Cast<ATankAI>(SpawnedTank))

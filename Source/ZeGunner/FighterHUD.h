@@ -7,10 +7,9 @@
 #include "FighterHUD.generated.h"
 
 /**
- * HUD class for the Fighter pawn.
- * Draws two crosshairs:
- *   1. RED crosshair  - predicted bomb impact point (follows airplane movement)
- *   2. WHITE crosshair - mouse-aimed rocket crosshair (follows mouse cursor)
+ * HUD class for the turret defense pawn.
+ * Draws a centered white crosshair for rocket aiming,
+ * altitude display, radar, score, and settings info.
  */
 UCLASS()
 class ZEGUNNER_API AFighterHUD : public AHUD
@@ -24,25 +23,7 @@ public:
 	virtual void DrawHUD() override;
 
 protected:
-	// ==================== Bomb Crosshair (Red) ====================
-
-	/** Size of the bomb crosshair circle (screen pixels) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|BombCrosshair")
-	float BombCrosshairRadius = 20.0f;
-
-	/** Thickness of the bomb crosshair lines */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|BombCrosshair")
-	float BombCrosshairThickness = 2.0f;
-
-	/** Color of the bomb crosshair */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|BombCrosshair")
-	FLinearColor BombCrosshairColor = FLinearColor(1.0f, 0.0f, 0.0f, 0.9f);
-
-	/** Number of segments used to draw the bomb crosshair circle */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|BombCrosshair")
-	int32 BombCircleSegments = 24;
-
-	// ==================== Rocket Crosshair (White) ====================
+	// ==================== Rocket Crosshair (White, Centered) ====================
 
 	/** Half-length of the rocket crosshair lines (screen pixels) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|RocketCrosshair")
@@ -89,40 +70,6 @@ protected:
 	/** Line spacing between text rows (pixels) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Text", meta = (ClampMin = "0.0"))
 	float LineSpacing = 24.0f;
-
-	// ==================== Jet HUD (Pitch Ladder / Horizon) ====================
-
-	/** Color of the jet HUD overlay (classic yellow-green) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|JetHUD")
-	FLinearColor JetHUDColor = FLinearColor(0.0f, 1.0f, 0.2f, 0.7f);
-
-	/** Dimmer color for secondary elements */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|JetHUD")
-	FLinearColor JetHUDDimColor = FLinearColor(0.0f, 1.0f, 0.2f, 0.35f);
-
-	/** Line thickness for jet HUD elements */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|JetHUD", meta = (ClampMin = "0.5"))
-	float JetHUDThickness = 1.0f;
-
-	/** Width of the horizon line (pixels from center) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|JetHUD", meta = (ClampMin = "20.0"))
-	float HorizonLineWidth = 70.0f;
-
-	/** Width of pitch ladder lines (pixels) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|JetHUD", meta = (ClampMin = "10.0"))
-	float PitchLadderWidth = 40.0f;
-
-	/** Pixels per degree for pitch ladder spacing */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|JetHUD", meta = (ClampMin = "1.0"))
-	float PitchPixelsPerDegree = 2.5f;
-
-	/** Pitch ladder step in degrees (a line every N degrees) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|JetHUD", meta = (ClampMin = "1"))
-	int32 PitchLadderStep = 10;
-
-	/** Max pitch degrees shown on ladder above/below horizon */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|JetHUD", meta = (ClampMin = "10"))
-	int32 PitchLadderRange = 20;
 
 	// ==================== Game Screens (Configurable Messages) ====================
 
