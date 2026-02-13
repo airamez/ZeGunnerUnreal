@@ -133,13 +133,14 @@ void ATankAI::SetMeshRotation(float YawRotation)
 	}
 }
 
-void ATankAI::SetZigzagSettings(bool bEnableZigzag, float MinDistance, float MaxDistance)
+void ATankAI::SetZigzagSettings(bool bEnableZigzag, float MinDistance, float MaxDistance, float InStraightLineDistance)
 {
 	bUseZigzagMovement = bEnableZigzag;
 	ZigzagMinDistance = FMath::Max(0.0f, MinDistance);
 	ZigzagMaxDistance = FMath::Max(0.0f, MaxDistance);
+	StraightLineDistance = FMath::Max(0.0f, InStraightLineDistance);
 	
-	UE_LOG(LogTemp, Warning, TEXT("SetZigzagSettings called: bEnableZigzag=%d, bTargetSet=%d"), bEnableZigzag ? 1 : 0, bTargetSet ? 1 : 0);
+	UE_LOG(LogTemp, Warning, TEXT("SetZigzagSettings called: bEnableZigzag=%d, bTargetSet=%d, StraightLineDist=%.0f"), bEnableZigzag ? 1 : 0, bTargetSet ? 1 : 0, StraightLineDistance);
 	
 	// Reinitialize zigzag if enabled and target has been set
 	if (bUseZigzagMovement && bTargetSet)
@@ -164,6 +165,17 @@ void ATankAI::MoveTowardTarget(float DeltaTime)
 	if (HasReachedTarget())
 	{
 		return;
+	}
+
+	// Check if tank should switch from zigzag to straight line
+	if (bUseZigzagMovement && StraightLineDistance > 0.0f)
+	{
+		float DistToTarget = FVector::Dist2D(GetActorLocation(), TargetLocation);
+		if (DistToTarget <= StraightLineDistance)
+		{
+			bUseZigzagMovement = false;
+			UE_LOG(LogTemp, Log, TEXT("TankAI: Within straight-line distance (%.0f), switching to direct approach"), DistToTarget);
+		}
 	}
 
 	if (bUseZigzagMovement)

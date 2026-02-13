@@ -38,9 +38,17 @@ protected:
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Tank Spawning")
 	AActor* BaseTarget;
 
-	/** Distance from center (0,0,0) where tanks spawn */
+	/** Initial distance from center (0,0,0) where tanks spawn on wave 1 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Spawning", meta = (ClampMin = "100.0"))
-	float SpawnRadius = 2000.0f;
+	float InitialSpawnRadius = 2000.0f;
+
+	/** Maximum spawn radius across all waves */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Spawning", meta = (ClampMin = "100.0"))
+	float MaxSpawnRadius = 5000.0f;
+
+	/** How much the spawn radius increases per wave */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Spawning", meta = (ClampMin = "0.0"))
+	float SpawnRadiusWaveIncrement = 200.0f;
 
 	// ==================== Wave Speed Scaling ====================
 
@@ -104,6 +112,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Spawning")
 	bool bUseZigzagMovement = false;
 
+	/** Distance from base where tanks stop zigzagging and go straight (0 = never stop zigzag) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Spawning", meta = (ClampMin = "0.0"))
+	float StraightLineDistance = 800.0f;
+
 	/** Minimum distance to travel after crossing center line before turning (zigzag) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tank Spawning", meta = (ClampMin = "0.0"))
 	float ZigzagMinDistance = 200.0f;
@@ -132,7 +144,7 @@ private:
 	void SpawnWave();
 
 	/** Calculate a random spawn position on the circle that doesn't overlap with others */
-	FVector GetRandomSpawnPosition();
+	FVector GetRandomSpawnPosition(float Radius);
 
 	/** Called when a tank is destroyed */
 	UFUNCTION()

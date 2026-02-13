@@ -398,14 +398,14 @@ void AFighterPawn::OnVolumeDown(const FInputActionValue& Value)
 
 void AFighterPawn::OnSensitivityUp(const FInputActionValue& Value)
 {
-	AimSensitivity = FMath::Clamp(AimSensitivity + SensitivityStep, MinSensitivity, MaxSensitivity);
-	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Sensitivity UP -> %.1f"), AimSensitivity);
+	SensitivityPercent = FMath::Clamp(SensitivityPercent + SensitivityStep, MinSensitivityPercent, MaxSensitivityPercent);
+	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Sensitivity UP -> %.0f%% (actual: %.3f)"), SensitivityPercent, GetAimSensitivity());
 }
 
 void AFighterPawn::OnSensitivityDown(const FInputActionValue& Value)
 {
-	AimSensitivity = FMath::Clamp(AimSensitivity - SensitivityStep, MinSensitivity, MaxSensitivity);
-	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Sensitivity DOWN -> %.1f"), AimSensitivity);
+	SensitivityPercent = FMath::Clamp(SensitivityPercent - SensitivityStep, MinSensitivityPercent, MaxSensitivityPercent);
+	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Sensitivity DOWN -> %.0f%% (actual: %.3f)"), SensitivityPercent, GetAimSensitivity());
 }
 
 void AFighterPawn::OnPausePressed(const FInputActionValue& Value)

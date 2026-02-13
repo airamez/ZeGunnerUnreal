@@ -102,7 +102,7 @@ Found under the **Turret** category in the Details panel.
 
 | Parameter | Description | Default | Min/Max |
 |-----------|-------------|---------|---------|
-| **Aim Sensitivity** | Mouse sensitivity for turret aiming (degrees per raw mouse unit) | 0.05 | 0.01+ |
+| **Aim Sensitivity** | Mouse sensitivity percentage (0-100, 50 = default) | 50 | 0-100 |
 | **Turret Max Pitch** | Maximum angle the turret can look up (degrees) | 80 | 1-89 |
 | **Turret Min Pitch** | Maximum angle the turret can look down (degrees) | 15 | 1-89 |
 | **Start Altitude** | Starting height of the turret (Z coordinate) | 3000 | Any |
@@ -167,8 +167,8 @@ Found under the **Radar** category.
 |-----------|-------------|---------|---------|
 | **Sound Volume** | Master volume for all sounds (0.0-1.0) | 0.5 | 0.0-1.0 |
 | **Volume Step** | How much volume changes per key press | 0.05 | 0+ |
-| **Sensitivity Step** | How much mouse sensitivity changes per key press | 0.1 | 0+ |
-| **Min/Max Sensitivity** | Mouse sensitivity limits | 0.1 / 5.0 | Any |
+| **Sensitivity Step** | How much sensitivity changes per key press (percentage points) | 5.0 | 0+ |
+| **Min/Max Sensitivity** | Sensitivity percentage limits | 0.0 / 100.0 | Any |
 | **FPS Update Interval** | How often FPS display refreshes (seconds) | 5.0 | 0+ |
 
 ### Base Defense Parameters
@@ -192,7 +192,9 @@ Found on the **TankWaveSpawner** actor in the level. Select it in the World Outl
 |-----------|-------------|---------|---------|
 | **Tank Class** | Blueprint class to spawn for tanks | None (must assign) | N/A |
 | **Base Target** | Actor representing the base center | None (must assign) | N/A |
-| **Spawn Radius** | Distance from center where tanks spawn | 2000 | 100+ |
+| **Initial Spawn Radius** | Distance from center where tanks spawn on wave 1 | 2000 | 100+ |
+| **Max Spawn Radius** | Maximum spawn radius across all waves | 5000 | 100+ |
+| **Spawn Radius Wave Increment** | How much spawn radius increases per wave | 200 | 0+ |
 | **Tanks Per Wave** | Number of tanks in the first wave | 5 | 1+ |
 | **Tanks Added Per Wave** | Additional tanks per subsequent wave | 2 | 0+ |
 | **Wave Delay** | Time between waves (seconds) | 5.0 | 0+ |
@@ -202,6 +204,7 @@ Found on the **TankWaveSpawner** actor in the level. Select it in the World Outl
 | **Line Of Fire Distance** | Distance from base where tanks stop and fire | 500 | 0+ |
 | **Rate Of Fire** | Seconds between shots at the base | 3.0 | 0.1+ |
 | **Use Zigzag Movement** | Enable sailboat-style zigzag approach | false | true/false |
+| **Straight Line Distance** | Distance from base where tanks stop zigzagging and go straight (0 = never) | 800 | 0+ |
 | **Zigzag Min Distance** | Min distance per zigzag leg | 200 | 0+ |
 | **Zigzag Max Distance** | Max distance per zigzag leg | 500 | 0+ |
 
@@ -241,7 +244,9 @@ Found on the **HeliWaveSpawner** actor in the level.
 |-----------|-------------|---------|---------|
 | **Heli Class** | Blueprint class to spawn for helicopters | None (must assign) | N/A |
 | **Base Target** | Actor representing the base center | None (must assign) | N/A |
-| **Spawn Radius** | Distance from center where helis spawn | 2000 | 100+ |
+| **Initial Spawn Radius** | Distance from center where helis spawn on wave 1 | 2000 | 100+ |
+| **Max Spawn Radius** | Maximum spawn radius across all waves | 5000 | 100+ |
+| **Spawn Radius Wave Increment** | How much spawn radius increases per wave | 200 | 0+ |
 | **Helis Per Wave** | Number of helicopters in the first wave | 3 | 1+ |
 | **Helis Added Per Wave** | Additional helis per subsequent wave | 1 | 0+ |
 | **Wave Delay** | Time between waves (seconds) | 5.0 | 0+ |

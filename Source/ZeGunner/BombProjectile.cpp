@@ -74,9 +74,9 @@ void ABombProjectile::OnBombHit(UPrimitiveComponent* HitComp, AActor* OtherActor
 
 		if (bHasHits)
 		{
-			for (const FHitResult& Hit : HitResults)
+			for (const FHitResult& SplashHit : HitResults)
 			{
-				AActor* HitActor = Hit.GetActor();
+				AActor* HitActor = SplashHit.GetActor();
 				if (!HitActor || HitActor == this || HitActor == GetOwner())
 				{
 					continue;

@@ -51,14 +51,17 @@ void AHeliWaveSpawner::SpawnWave()
 	// Calculate helicopters for this wave
 	int32 HelisToSpawn = HelisPerWave + (CurrentWave - 1) * HelisAddedPerWave;
 
-	UE_LOG(LogTemp, Log, TEXT("HeliWaveSpawner: Spawning wave %d with %d helicopters"), CurrentWave, HelisToSpawn);
+	// Calculate wave-scaled spawn radius
+	float WaveSpawnRadius = FMath::Min(InitialSpawnRadius + (CurrentWave - 1) * SpawnRadiusWaveIncrement, MaxSpawnRadius);
+
+	UE_LOG(LogTemp, Log, TEXT("HeliWaveSpawner: Spawning wave %d with %d helicopters at radius %.0f"), CurrentWave, HelisToSpawn, WaveSpawnRadius);
 
 	UsedSpawnAngles.Empty();
 
 	// Spawn all helicopters for this wave simultaneously
 	for (int32 i = 0; i < HelisToSpawn; i++)
 	{
-		FVector SpawnLocation = GetRandomSpawnPosition();
+		FVector SpawnLocation = GetRandomSpawnPosition(WaveSpawnRadius);
 
 		if (SpawnLocation.IsNearlyZero())
 		{
@@ -109,11 +112,11 @@ void AHeliWaveSpawner::SpawnWave()
 	UE_LOG(LogTemp, Log, TEXT("HeliWaveSpawner: Wave %d complete. Active helicopters: %d"), CurrentWave, ActiveHeliCount);
 }
 
-FVector AHeliWaveSpawner::GetRandomSpawnPosition()
+FVector AHeliWaveSpawner::GetRandomSpawnPosition(float Radius)
 {
 	// Maximum attempts to find a valid position
 	const int32 MaxAttempts = 50;
-	const float AngleSeparationRad = FMath::DegreesToRadians(MinSpawnSeparation / SpawnRadius);
+	const float AngleSeparationRad = FMath::DegreesToRadians(MinSpawnSeparation / Radius);
 
 	for (int32 Attempt = 0; Attempt < MaxAttempts; Attempt++)
 	{
@@ -143,8 +146,8 @@ FVector AHeliWaveSpawner::GetRandomSpawnPosition()
 			UsedSpawnAngles.Add(RandomAngleDegrees);
 
 			// Convert polar coordinates to Cartesian
-			float X = FMath::Cos(RandomAngleRad) * SpawnRadius;
-			float Y = FMath::Sin(RandomAngleRad) * SpawnRadius;
+			float X = FMath::Cos(RandomAngleRad) * Radius;
+			float Y = FMath::Sin(RandomAngleRad) * Radius;
 
 			// Random height between MinSpawnHeight and MaxSpawnHeight
 			float RandomHeight = FMath::FRandRange(MinSpawnHeight, MaxSpawnHeight);

@@ -129,7 +129,7 @@ void AFighterHUD::DrawSettingsInfo(AFighterPawn* Fighter)
 	// Build text strings first so we can measure them
 	int32 VolPercent = FMath::RoundToInt(Fighter->GetSoundVolume() * 100.0f);
 	FString VolText = FString::Printf(TEXT("Volume: %d%%"), VolPercent);
-	FString SensText = FString::Printf(TEXT("Sensitivity: %.1f"), Fighter->GetAimSensitivityDisplay());
+	FString SensText = FString::Printf(TEXT("Sensitivity: %.0f%%"), Fighter->GetAimSensitivityDisplay());
 	
 	// Add FPS text if enabled
 	FString FpsText;

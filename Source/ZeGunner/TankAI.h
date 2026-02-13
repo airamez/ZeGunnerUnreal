@@ -69,6 +69,10 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Tank Movement")
 	float ZigzagMaxDistance = 500.0f;
 
+	/** Distance from base where tank stops zigzagging and goes straight (0 = never) */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Tank Movement")
+	float StraightLineDistance = 800.0f;
+
 public:
 	/** Set the target location for the tank to move toward */
 	UFUNCTION(BlueprintCallable, Category = "Tank Movement")
@@ -88,7 +92,7 @@ public:
 
 	/** Set zigzag movement settings */
 	UFUNCTION(BlueprintCallable, Category = "Tank Movement")
-	void SetZigzagSettings(bool bEnableZigzag, float MinDistance, float MaxDistance);
+	void SetZigzagSettings(bool bEnableZigzag, float MinDistance, float MaxDistance, float InStraightLineDistance = 0.0f);
 
 	/** Set the rate of fire (seconds between shots) */
 	void SetRateOfFire(float Rate);

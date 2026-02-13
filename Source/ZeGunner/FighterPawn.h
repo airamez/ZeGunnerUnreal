@@ -109,13 +109,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Settings")
 	float GetSoundVolume() const { return SoundVolume; }
 
-	/** Returns current aim sensitivity */
+	/** Returns current aim sensitivity (calculated from percentage) */
 	UFUNCTION(BlueprintCallable, Category = "Settings")
-	float GetAimSensitivity() const { return AimSensitivity; }
+	float GetAimSensitivity() const { return BaseSensitivity + (SensitivityPercent - 50.0f) * SensitivityMultiplier; }
 
-	/** Returns aim sensitivity scaled for UI display */
+	/** Returns aim sensitivity percentage for UI display (0-100) */
 	UFUNCTION(BlueprintCallable, Category = "Settings")
-	float GetAimSensitivityDisplay() const { return AimSensitivity * SensitivityDisplayScale; }
+	float GetAimSensitivityDisplay() const { return SensitivityPercent; }
 
 	/** Returns current radar zoom level (multiplier applied to radar world range) */
 	UFUNCTION(BlueprintCallable, Category = "Settings")
@@ -336,12 +336,26 @@ private:
 
 	/** Volume/sensitivity step per key press */
 	float VolumeStep = 0.05f;
-	float SensitivityStep = 0.1f;
-	float MinSensitivity = 0.1f;
-	float MaxSensitivity = 5.0f;
 
-	/** Display scaling for sensitivity (multiplier for UI display only) */
-	float SensitivityDisplayScale = 50.0f;
+	// ==================== Sensitivity Control (0-100 scale) ====================
+
+	/** Sensitivity percentage (0-100, 50 = current default) */
+	float SensitivityPercent = 50.0f;
+
+	/** How much sensitivity changes per key press (percentage points) */
+	float SensitivityStep = 5.0f;
+
+	/** Minimum sensitivity percentage */
+	float MinSensitivityPercent = 0.0f;
+
+	/** Maximum sensitivity percentage */
+	float MaxSensitivityPercent = 100.0f;
+
+	/** Base sensitivity value that corresponds to 50% */
+	float BaseSensitivity = 0.08f;
+
+	/** How much sensitivity changes per percentage point */
+	float SensitivityMultiplier = 0.0014f;
 
 	/** Radar zoom level (1.0 = default, lower = zoomed in, higher = zoomed out) */
 	float RadarZoom = 1.0f;

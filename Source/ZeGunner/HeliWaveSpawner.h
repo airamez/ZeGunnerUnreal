@@ -39,9 +39,17 @@ protected:
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Helicopter Spawning")
 	AActor* BaseTarget;
 
-	/** Distance from center (0,0,0) where helicopters spawn */
+	/** Initial distance from center (0,0,0) where helicopters spawn on wave 1 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Spawning", meta = (ClampMin = "100.0"))
-	float SpawnRadius = 2000.0f;
+	float InitialSpawnRadius = 2000.0f;
+
+	/** Maximum spawn radius across all waves */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Spawning", meta = (ClampMin = "100.0"))
+	float MaxSpawnRadius = 5000.0f;
+
+	/** How much the spawn radius increases per wave */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Helicopter Spawning", meta = (ClampMin = "0.0"))
+	float SpawnRadiusWaveIncrement = 200.0f;
 
 	// ==================== Wave Speed Scaling ====================
 
@@ -147,7 +155,7 @@ private:
 	void SpawnWave();
 
 	/** Calculate a random spawn position on the circle that doesn't overlap with others */
-	FVector GetRandomSpawnPosition();
+	FVector GetRandomSpawnPosition(float Radius);
 
 	/** Called when a helicopter is destroyed */
 	UFUNCTION()

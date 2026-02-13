@@ -51,14 +51,17 @@ void ATankWaveSpawner::SpawnWave()
 	// Calculate tanks for this wave
 	int32 TanksToSpawn = TanksPerWave + (CurrentWave - 1) * TanksAddedPerWave;
 	
-	UE_LOG(LogTemp, Log, TEXT("TankWaveSpawner: Spawning wave %d with %d tanks"), CurrentWave, TanksToSpawn);
+	// Calculate wave-scaled spawn radius
+	float WaveSpawnRadius = FMath::Min(InitialSpawnRadius + (CurrentWave - 1) * SpawnRadiusWaveIncrement, MaxSpawnRadius);
+	
+	UE_LOG(LogTemp, Log, TEXT("TankWaveSpawner: Spawning wave %d with %d tanks at radius %.0f"), CurrentWave, TanksToSpawn, WaveSpawnRadius);
 	
 	UsedSpawnAngles.Empty();
 	
 	// Spawn all tanks for this wave simultaneously
 	for (int32 i = 0; i < TanksToSpawn; i++)
 	{
-		FVector SpawnLocation = GetRandomSpawnPosition();
+		FVector SpawnLocation = GetRandomSpawnPosition(WaveSpawnRadius);
 		
 		if (SpawnLocation.IsNearlyZero())
 		{
@@ -90,7 +93,7 @@ void ATankWaveSpawner::SpawnWave()
 				TankAI->SetMoveSpeed(RandomSpeed);
 				TankAI->SetStoppingDistance(LineOfFireDistance);
 				TankAI->SetMeshRotation(MeshRotationOffset);
-				TankAI->SetZigzagSettings(bUseZigzagMovement, ZigzagMinDistance, ZigzagMaxDistance);
+				TankAI->SetZigzagSettings(bUseZigzagMovement, ZigzagMinDistance, ZigzagMaxDistance, StraightLineDistance);
 				TankAI->SetRateOfFire(RateOfFire);
 				TankAI->SetTargetLocation(TargetLocation);
 			}
@@ -108,11 +111,11 @@ void ATankWaveSpawner::SpawnWave()
 	UE_LOG(LogTemp, Log, TEXT("TankWaveSpawner: Wave %d complete. Active tanks: %d"), CurrentWave, ActiveTankCount);
 }
 
-FVector ATankWaveSpawner::GetRandomSpawnPosition()
+FVector ATankWaveSpawner::GetRandomSpawnPosition(float Radius)
 {
 	// Maximum attempts to find a valid position
 	const int32 MaxAttempts = 50;
-	const float AngleSeparationRad = FMath::DegreesToRadians(MinSpawnSeparation / SpawnRadius);
+	const float AngleSeparationRad = FMath::DegreesToRadians(MinSpawnSeparation / Radius);
 	
 	for (int32 Attempt = 0; Attempt < MaxAttempts; Attempt++)
 	{
@@ -142,8 +145,8 @@ FVector ATankWaveSpawner::GetRandomSpawnPosition()
 			UsedSpawnAngles.Add(RandomAngleDegrees);
 			
 			// Convert polar coordinates to Cartesian
-			float X = FMath::Cos(RandomAngleRad) * SpawnRadius;
-			float Y = FMath::Sin(RandomAngleRad) * SpawnRadius;
+			float X = FMath::Cos(RandomAngleRad) * Radius;
+			float Y = FMath::Sin(RandomAngleRad) * Radius;
 			
 			return FVector(X, Y, SpawnHeightOffset);
 		}
