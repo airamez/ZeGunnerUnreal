@@ -22,11 +22,11 @@ ATankAI::ATankAI()
 	// Create box collision component for reliable hit detection
 	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
 	CollisionBox->SetupAttachment(SceneRoot);
-	CollisionBox->SetBoxExtent(FVector(150.0f, 75.0f, 75.0f));
+	CollisionBox->SetBoxExtent(FVector(150.0f, 100.0f, 150.0f));
 	CollisionBox->SetCollisionProfileName(TEXT("BlockAllDynamic"));
 	CollisionBox->SetGenerateOverlapEvents(true);
 	CollisionBox->SetSimulatePhysics(false);
-	CollisionBox->SetRelativeLocation(FVector(0.0f, 0.0f, 50.0f));
+	CollisionBox->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f));
 
 	// Create the skeletal mesh component as child (for visual rotation)
 	TankMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("TankMesh"));

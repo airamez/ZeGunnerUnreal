@@ -7,6 +7,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "TankAI.h"
 #include "HeliAI.h"
+#include "UFOAI.h"
 #include "Sound/SoundBase.h"
 #include "RocketProjectile.generated.h"
 

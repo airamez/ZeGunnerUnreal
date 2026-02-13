@@ -4,6 +4,7 @@
 #include "FighterPawn.h"
 #include "TankAI.h"
 #include "HeliAI.h"
+#include "UFOAI.h"
 #include "Engine/Canvas.h"
 #include "Engine/Font.h"
 #include "GameFramework/PlayerController.h"
@@ -203,11 +204,16 @@ void AFighterHUD::DrawScoreInfo(AFighterPawn* Fighter)
 	FString WaveText = FString::Printf(TEXT("Wave: %d"), Fighter->GetCurrentWave());
 	FString TankText = FString::Printf(TEXT("Tanks: %d/%d"), Fighter->GetTanksDestroyed(), Fighter->GetWaveTotalTanks());
 	FString HeliText = FString::Printf(TEXT("Helis: %d/%d"), Fighter->GetHelisDestroyed(), Fighter->GetWaveTotalHelis());
+	FString UFOText = FString::Printf(TEXT("UFOs: %d/%d"), Fighter->GetUFOsDestroyed(), Fighter->GetWaveTotalUFOs());
 	FString HPText = FString::Printf(TEXT("Base HP: %d/%d"), Fighter->GetBaseHP(), Fighter->GetBaseMaxHP());
+
+	// Count how many enemy lines to show (only show lines with enemies > 0)
+	int32 EnemyLines = 2; // Tanks and Helis always shown
+	if (Fighter->GetWaveTotalUFOs() > 0) EnemyLines++;
 
 	// Draw semi-transparent background panel
 	float PanelWidth = 140.0f;
-	float PanelHeight = LineSpacing * 4.0f + 16.0f;
+	float PanelHeight = LineSpacing * (2.0f + EnemyLines) + 16.0f;
 	FLinearColor PanelColor(0.0f, 0.0f, 0.0f, 0.4f);
 	Canvas->K2_DrawBox(FVector2D(X - 4.0f, Y - 4.0f), FVector2D(PanelWidth, PanelHeight), 1.0f, PanelColor);
 
@@ -243,6 +249,17 @@ void AFighterHUD::DrawScoreInfo(AFighterPawn* Fighter)
 	HeliItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.6f);
 	Canvas->DrawItem(HeliItem);
 	Y += LineSpacing;
+
+	// UFOs X/Y (only show if there are UFOs in this wave)
+	if (Fighter->GetWaveTotalUFOs() > 0)
+	{
+		FCanvasTextItem UFOItem(FVector2D(X, Y), FText::FromString(UFOText), HUDFont, ScoreTextColor);
+		UFOItem.Scale = FVector2D(TextScale, TextScale);
+		UFOItem.bOutlined = true;
+		UFOItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.6f);
+		Canvas->DrawItem(UFOItem);
+		Y += LineSpacing;
+	}
 
 }
 
@@ -417,6 +434,42 @@ void AFighterHUD::DrawRadar(AFighterPawn* Fighter)
 		}
 	}
 
+	// --- Draw UFOs (magenta dots with height bar) ---
+	for (TActorIterator<AUFOAI> It(World); It; ++It)
+	{
+		AUFOAI* UFO = *It;
+		if (!UFO) continue;
+
+		FVector UFOPos = UFO->GetActorLocation();
+		FVector RelPos = UFOPos - PlayerPos;
+
+		float RotX = RelPos.X * FMath::Cos(-PlayerYawRad) - RelPos.Y * FMath::Sin(-PlayerYawRad);
+		float RotY = RelPos.X * FMath::Sin(-PlayerYawRad) + RelPos.Y * FMath::Cos(-PlayerYawRad);
+
+		float DotX = RadarCX + RotY * Scale;
+		float DotY = RadarCY - RotX * Scale;
+
+		float Margin = RadarDotSize + 1.0f;
+		DotX = FMath::Clamp(DotX, L + Margin, R - Margin);
+		DotY = FMath::Clamp(DotY, T + Margin, B - Margin);
+
+		// Draw magenta X shape for UFOs
+		float S = RadarDotSize;
+		Canvas->K2_DrawLine(FVector2D(DotX - S, DotY - S), FVector2D(DotX + S, DotY + S), 2.0f, RadarUFOColor);
+		Canvas->K2_DrawLine(FVector2D(DotX + S, DotY - S), FVector2D(DotX - S, DotY + S), 2.0f, RadarUFOColor);
+
+		// Draw vertical height bar below the dot
+		float UFOAlt = FMath::Max(0.0f, UFOPos.Z);
+		float BarLength = FMath::Clamp(UFOAlt / RadarHeliMaxAltitude, 0.0f, 1.0f) * RadarHeliBarMaxLength;
+		if (BarLength > 1.0f)
+		{
+			Canvas->K2_DrawLine(
+				FVector2D(DotX, DotY + RadarDotSize + 1.0f),
+				FVector2D(DotX, DotY + RadarDotSize + 1.0f + BarLength),
+				RadarHeliBarWidth, RadarUFOColor);
+		}
+	}
+
 	// --- Draw "RADAR" label ---
 	if (HUDFont)
 	{
@@ -572,9 +625,10 @@ void AFighterHUD::DrawGameScreen(AFighterPawn* Fighter)
 		DrawCenteredText(GameOverSubtitle, CY - 20.0f, TextColor, 1.2f);
 
 		// Stats
-		FString StatsText = FString::Printf(TEXT("Waves survived: %d  |  Tanks: %d  |  Helis: %d"),
+		FString StatsText = FString::Printf(TEXT("Waves survived: %d  |  Tanks: %d  |  Helis: %d  |  UFOs: %d"),
 			Fighter->GetCurrentWave() > 0 ? Fighter->GetCurrentWave() - 1 : 0,
-			Fighter->GetTanksDestroyed(), Fighter->GetHelisDestroyed());
+			Fighter->GetTanksDestroyed(), Fighter->GetHelisDestroyed(),
+			Fighter->GetUFOsDestroyed());
 		DrawCenteredText(StatsText, CY + 30.0f, TextColor, 0.9f);
 
 		DrawCenteredText(GameOverRestartMessage, CY + 100.0f, PromptColor, 1.3f);
@@ -592,9 +646,17 @@ void AFighterHUD::DrawGameScreen(AFighterPawn* Fighter)
 		DrawCenteredText(TankStats, CY + 0.0f, TextColor, 1.0f);
 		DrawCenteredText(HeliStats, CY + 28.0f, TextColor, 1.0f);
 
-		FString HPText = FString::Printf(TEXT("Base HP: %d/%d"), Fighter->GetBaseHP(), Fighter->GetBaseMaxHP());
-		DrawCenteredText(HPText, CY + 60.0f, PromptColor, 1.0f);
+		float NextStatY = CY + 56.0f;
+		if (Fighter->GetWaveTotalUFOs() > 0)
+		{
+			FString UFOStats = FString::Printf(TEXT("UFOs destroyed: %d/%d"), Fighter->GetUFOsDestroyed(), Fighter->GetWaveTotalUFOs());
+			DrawCenteredText(UFOStats, NextStatY, TextColor, 1.0f);
+			NextStatY += 28.0f;
+		}
 
-		DrawCenteredText(WaveNextMessage, CY + 120.0f, PromptColor, 1.3f);
+		FString HPText = FString::Printf(TEXT("Base HP: %d/%d"), Fighter->GetBaseHP(), Fighter->GetBaseMaxHP());
+		DrawCenteredText(HPText, NextStatY + 4.0f, PromptColor, 1.0f);
+
+		DrawCenteredText(WaveNextMessage, NextStatY + 64.0f, PromptColor, 1.3f);
 	}
 }

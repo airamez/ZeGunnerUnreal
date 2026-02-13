@@ -55,6 +55,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Score")
 	int32 GetHelisDestroyed() const { return WaveHelisDestroyed; }
 
+	/** Returns number of UFOs destroyed in current wave */
+	UFUNCTION(BlueprintCallable, Category = "Score")
+	int32 GetUFOsDestroyed() const { return WaveUFOsDestroyed; }
+
 	/** Returns total tanks in current wave */
 	UFUNCTION(BlueprintCallable, Category = "Score")
 	int32 GetWaveTotalTanks() const { return WaveTotalTanks; }
@@ -63,12 +67,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Score")
 	int32 GetWaveTotalHelis() const { return WaveTotalHelis; }
 
+	/** Returns total UFOs in current wave */
+	UFUNCTION(BlueprintCallable, Category = "Score")
+	int32 GetWaveTotalUFOs() const { return WaveTotalUFOs; }
+
 	/** Called by projectiles when they destroy an enemy */
 	UFUNCTION(BlueprintCallable, Category = "Score")
 	void AddTankKill() { WaveTanksDestroyed++; TotalTanksDestroyed++; CheckWaveCleared(); }
 
 	UFUNCTION(BlueprintCallable, Category = "Score")
 	void AddHeliKill() { WaveHelisDestroyed++; TotalHelisDestroyed++; CheckWaveCleared(); }
+
+	UFUNCTION(BlueprintCallable, Category = "Score")
+	void AddUFOKill() { WaveUFOsDestroyed++; TotalUFOsDestroyed++; CheckWaveCleared(); }
 
 	/** Returns current base HP */
 	UFUNCTION(BlueprintCallable, Category = "Game")
@@ -103,7 +114,7 @@ public:
 	void DamageBase(int32 Damage = 1);
 
 	/** Called by spawners to register wave enemy counts */
-	void RegisterWaveEnemies(int32 Tanks, int32 Helis);
+	void RegisterWaveEnemies(int32 Tanks, int32 Helis, int32 UFOs = 0);
 
 	/** Returns current sound volume (0.0 - 1.0) */
 	UFUNCTION(BlueprintCallable, Category = "Settings")
@@ -295,12 +306,15 @@ private:
 	/** Score tracking (per wave) */
 	int32 WaveTanksDestroyed = 0;
 	int32 WaveHelisDestroyed = 0;
+	int32 WaveUFOsDestroyed = 0;
 	int32 WaveTotalTanks = 0;
 	int32 WaveTotalHelis = 0;
+	int32 WaveTotalUFOs = 0;
 
 	/** Score tracking (total) */
 	int32 TotalTanksDestroyed = 0;
 	int32 TotalHelisDestroyed = 0;
+	int32 TotalUFOsDestroyed = 0;
 
 	/** Game state */
 	EGameState CurrentGameState = EGameState::Instructions;
@@ -325,10 +339,12 @@ private:
 		TEXT("  | Aim: Mouse (360 rotation)\n")
 		TEXT("  | Fire rockets: Left Mouse (hold for auto-fire)\n")
 		TEXT("  | Turret Up: E || Turret Down: Q\n")
+		TEXT("  | Zoom in/out: Mouse Scroll Wheel\n")
 		TEXT("  | Zoom radar: [ ] keys || Toggle FPS: F key\n")
 		TEXT("  | Volume: Arrows Up/Down || Sensitivity: Arrows Left/Right\n")
 		TEXT("  | Pause game: ESC\n")
-		TEXT("  | Rockets destroy tanks and helicopters!\n")
+		TEXT("  | Rockets destroy tanks, helicopters, and UFOs!\n")
+		TEXT("  | UFOs appear after wave 5!\n")
 		TEXT("  | If the base HP reaches zero, you lose the game!\n");
 
 	/** Sound volume (0.0 - 1.0) */

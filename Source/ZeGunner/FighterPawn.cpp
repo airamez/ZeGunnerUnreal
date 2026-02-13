@@ -4,8 +4,10 @@
 #include "RocketProjectile.h"
 #include "TankAI.h"
 #include "HeliAI.h"
+#include "UFOAI.h"
 #include "TankWaveSpawner.h"
 #include "HeliWaveSpawner.h"
+#include "SpecialWaveSpawner.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SceneComponent.h"
 #include "EnhancedInputComponent.h"
@@ -451,8 +453,23 @@ void AFighterPawn::OnDebugTestWave(const FInputActionValue& Value)
 		}
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("FighterPawn: DEBUG - Kept 1 tank and 1 heli for testing. Destroyed %d tanks and %d helis."), 
-		FMath::Max(0, AllTanks.Num() - 1), FMath::Max(0, AllHelis.Num() - 1));
+	TArray<AUFOAI*> AllUFOs;
+	for (TActorIterator<AUFOAI> It(GetWorld()); It; ++It)
+	{
+		AllUFOs.Add(*It);
+	}
+
+	for (int32 i = 1; i < AllUFOs.Num(); i++)
+	{
+		if (AllUFOs[i] && AllUFOs[i]->IsValidLowLevel())
+		{
+			AllUFOs[i]->Destroy();
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("FighterPawn: DEBUG - Kept 1 of each type. Destroyed %d tanks, %d helis, %d UFOs."), 
+		FMath::Max(0, AllTanks.Num() - 1), FMath::Max(0, AllHelis.Num() - 1),
+		FMath::Max(0, AllUFOs.Num() - 1));
 }
 
 void AFighterPawn::OnContinuePressed(const FInputActionValue& Value)
@@ -502,19 +519,20 @@ void AFighterPawn::DamageBase(int32 Damage)
 	}
 }
 
-void AFighterPawn::RegisterWaveEnemies(int32 Tanks, int32 Helis)
+void AFighterPawn::RegisterWaveEnemies(int32 Tanks, int32 Helis, int32 UFOs)
 {
 	WaveTotalTanks += Tanks;
 	WaveTotalHelis += Helis;
-	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Wave enemies registered - Tanks: %d, Helis: %d"), WaveTotalTanks, WaveTotalHelis);
+	WaveTotalUFOs += UFOs;
+	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Wave enemies registered - Tanks: %d, Helis: %d, UFOs: %d"), WaveTotalTanks, WaveTotalHelis, WaveTotalUFOs);
 }
 
 void AFighterPawn::CheckWaveCleared()
 {
 	if (CurrentGameState != EGameState::Playing) return;
 
-	int32 TotalKilled = WaveTanksDestroyed + WaveHelisDestroyed;
-	int32 TotalEnemies = WaveTotalTanks + WaveTotalHelis;
+	int32 TotalKilled = WaveTanksDestroyed + WaveHelisDestroyed + WaveUFOsDestroyed;
+	int32 TotalEnemies = WaveTotalTanks + WaveTotalHelis + WaveTotalUFOs;
 
 	if (TotalEnemies > 0 && TotalKilled >= TotalEnemies)
 	{
@@ -529,8 +547,10 @@ void AFighterPawn::StartNextWave()
 	CurrentWave++;
 	WaveTanksDestroyed = 0;
 	WaveHelisDestroyed = 0;
+	WaveUFOsDestroyed = 0;
 	WaveTotalTanks = 0;
 	WaveTotalHelis = 0;
+	WaveTotalUFOs = 0;
 	WaveStartTime = GetWorld()->GetTimeSeconds();
 	
 	// Reset base HP at the start of each wave
@@ -554,7 +574,18 @@ void AFighterPawn::StartNextWave()
 		RegisterWaveEnemies(0, HeliCount);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Wave %d started! Tanks: %d, Helis: %d"), CurrentWave, WaveTotalTanks, WaveTotalHelis);
+	// Trigger special wave spawner (UFOs after wave 5)
+	for (TActorIterator<ASpecialWaveSpawner> It(GetWorld()); It; ++It)
+	{
+		int32 UFOCount = It->GetNextWaveUFOCount(CurrentWave);
+		It->TriggerNextWave(CurrentWave);
+		if (UFOCount > 0)
+		{
+			RegisterWaveEnemies(0, 0, UFOCount);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("FighterPawn: Wave %d started! Tanks: %d, Helis: %d, UFOs: %d"), CurrentWave, WaveTotalTanks, WaveTotalHelis, WaveTotalUFOs);
 }
 
 // ==================== Turret Aim (Mouse Rotation) ====================
@@ -694,6 +725,17 @@ void AFighterPawn::BindEnemyDestroyedEvents()
 			BoundEnemies.Add(Heli);
 		}
 	}
+
+	// Bind to all UFOAI actors
+	for (TActorIterator<AUFOAI> It(GetWorld()); It; ++It)
+	{
+		AActor* UFO = *It;
+		if (!BoundEnemies.Contains(UFO))
+		{
+			UFO->OnDestroyed.AddDynamic(this, &AFighterPawn::OnEnemyDestroyed);
+			BoundEnemies.Add(UFO);
+		}
+	}
 }
 
 void AFighterPawn::OnEnemyDestroyed(AActor* DestroyedActor)
@@ -709,6 +751,11 @@ void AFighterPawn::OnEnemyDestroyed(AActor* DestroyedActor)
 	{
 		AddHeliKill();
 		UE_LOG(LogTemp, Log, TEXT("FighterPawn: Helicopter destroyed! Wave: %d/%d"), WaveHelisDestroyed, WaveTotalHelis);
+	}
+	else if (DestroyedActor->IsA<AUFOAI>())
+	{
+		AddUFOKill();
+		UE_LOG(LogTemp, Log, TEXT("FighterPawn: UFO destroyed! Wave: %d/%d"), WaveUFOsDestroyed, WaveTotalUFOs);
 	}
 }
 

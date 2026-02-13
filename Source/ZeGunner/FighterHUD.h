@@ -143,6 +143,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Radar")
 	FLinearColor RadarHeliColor = FLinearColor(1.0f, 0.9f, 0.1f, 1.0f);
 
+	/** UFO dot color (magenta/purple) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Radar")
+	FLinearColor RadarUFOColor = FLinearColor(0.8f, 0.2f, 1.0f, 1.0f);
+
 	/** Dot size for enemies on radar (pixels) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Radar", meta = (ClampMin = "1.0"))
 	float RadarDotSize = 4.0f;

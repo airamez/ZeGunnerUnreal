@@ -3,6 +3,7 @@
 #include "RocketProjectile.h"
 #include "TankAI.h"
 #include "HeliAI.h"
+#include "UFOAI.h"
 #include "FighterPawn.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -142,6 +143,11 @@ void ARocketProjectile::OnRocketHit(UPrimitiveComponent* HitComp, AActor* OtherA
 	{
 		UE_LOG(LogTemp, Log, TEXT("RocketProjectile: Direct hit on tank!"));
 		Tank->Destroy();
+	}
+	else if (AUFOAI* UFO = Cast<AUFOAI>(OtherActor))
+	{
+		UE_LOG(LogTemp, Log, TEXT("RocketProjectile: Direct hit on UFO!"));
+		UFO->Destroy();
 	}
 
 	// Destroy the rocket

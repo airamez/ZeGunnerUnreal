@@ -1,6 +1,6 @@
 # ZeGunner
 
-An Unreal Engine 5.7 turret defense game. Defend your base from waves of tanks and helicopters by controlling a turret that fires rockets. The turret is positioned at (0, 0, 500) and can rotate 360 degrees following the mouse, with height adjustable via Q/E keys.
+An Unreal Engine 5.7 turret defense game. Defend your base from waves of tanks, helicopters, and UFOs by controlling a turret that fires rockets. The turret is positioned at (0, 0, 500) and can rotate 360 degrees following the mouse, with height adjustable via Q/E keys.
 
 ---
 
@@ -17,7 +17,7 @@ The **FighterPawn** (turret mode) is a first-person turret pawn fixed at positio
 | **Q** | Move turret down |
 | **E** | Move turret up |
 | **Mouse Wheel Up** | Zoom in (up to 10x) |
-| **Mouse Wheel Down** | Zoom out |
+| **Mouse Wheel Down** | Zoom out (back to 1x) |
 | **[** | Radar zoom in |
 | **]** | Radar zoom out |
 | **F** | Toggle FPS display |
@@ -41,14 +41,16 @@ The **FighterPawn** (turret mode) is a first-person turret pawn fixed at positio
 - Each hit reduces **Base HP** by 1 and flashes the screen red.
 - Base HP is shown in the top-left score panel. Turns red when below 25%.
 - If Base HP reaches 0, you lose.
-- **Rockets destroy both tanks and helicopters.**
+- **Rockets destroy tanks, helicopters, and UFOs.**
+- **UFOs start spawning after wave 5** and approach the base incrementally.
 
 ### Wave System
 
-- Waves are managed by `TankWaveSpawner` and `HeliWaveSpawner` actors in the level.
+- Waves are managed by `TankWaveSpawner`, `HeliWaveSpawner`, and `SpecialWaveSpawner` (UFOs) actors in the level.
 - Spawners wait for the turret pawn to trigger each wave (no auto-spawning).
 - Each wave adds more enemies (configurable per-spawner).
 - **Enemy speed increases per wave** — both min and max speed grow each wave, capped at absolute maximums.
+- **UFOs spawn after wave 5** via the `SpecialWaveSpawner`.
 - Kill counters show **X/Y** format (destroyed/total in current wave).
 
 ### Crosshair
@@ -83,6 +85,7 @@ A square radar display in the top-right corner shows enemies within range. The r
 - **Green triangle** — Player (turret) at center, pointing forward
 - **Red diamond dots** — Tanks on the ground
 - **Yellow circle dots** — Helicopters (with vertical height bar below)
+- **Magenta X dots** — UFOs (with vertical height bar below)
 - **Square border** — Outer radar boundary
 - **Concentric rings** — Distance markers (66% and 33% of range)
 
@@ -293,6 +296,78 @@ When helicopters get within a configurable distance of the base, they start "dan
 
 ---
 
+## UFO Wave Spawner Configuration
+
+Found on the **SpecialWaveSpawner** actor in the level. UFOs only spawn after a configurable wave threshold (default: wave 5).
+
+### UFO Spawning
+
+| Parameter | Description | Default | Min/Max |
+|-----------|-------------|---------|----------|
+| **UFO Class** | Blueprint class to spawn for UFOs (based on UFOAI) | None (must assign) | N/A |
+| **UFOs Per Wave** | Number of UFOs to spawn per wave (after threshold) | 1 | 1+ |
+| **UFO Spawn Radius** | Distance from base center where UFOs spawn | 3000 | 100+ |
+| **UFO Min Spawn Height** | Minimum flying height for spawned UFOs | 400 | 0+ |
+| **UFO Max Spawn Height** | Maximum flying height for spawned UFOs | 800 | 0+ |
+| **UFO Speed** | Movement speed in units/sec | 400 | 0+ |
+| **UFO Mesh Rotation Offset** | Visual rotation fix for UFO model (degrees) | 0 | Any |
+| **UFO Rate Of Fire** | Seconds between shots at the base | 4.0 | 0.1+ |
+| **Start After Wave** | Wave number after which UFOs start spawning | 5 | 1+ |
+
+### UFO Approach Movement
+
+The UFO movement is an **incremental approach** pattern:
+
+1. The UFO spawns at a random point on the spawn radius.
+2. After hovering for a random duration, it flies to a **new random point that is closer to the base**.
+3. Each new waypoint reduces the UFO's distance to the base by a random amount between `Min Approach Increment` and `Max Approach Increment`.
+4. The waypoint is offset laterally (perpendicular to the approach direction) by a random amount between `Min Lateral Spread` and `Max Lateral Spread`, creating an unpredictable zigzag path.
+5. This repeats until the UFO reaches the `Stopping Distance` from the base.
+6. Once at stopping distance, the UFO hovers around that area and continues firing.
+
+| Parameter | Description | Default | Min/Max |
+|-----------|-------------|---------|----------|
+| **UFO Min Approach Increment** | Minimum distance closer to base per waypoint (units) | 200 | 0+ |
+| **UFO Max Approach Increment** | Maximum distance closer to base per waypoint (units) | 500 | 0+ |
+| **UFO Min Lateral Spread** | Minimum perpendicular offset when picking next waypoint (units) | 100 | 0+ |
+| **UFO Max Lateral Spread** | Maximum perpendicular offset when picking next waypoint (units) | 800 | 0+ |
+| **UFO Stopping Distance** | Distance from base where UFO stops approaching and hovers | 300 | 0+ |
+| **UFO Min Hover Time** | Minimum time hovering at a waypoint before moving (seconds) | 1.0 | 0.1+ |
+| **UFO Max Hover Time** | Maximum time hovering at a waypoint before moving (seconds) | 3.0 | 0.1+ |
+
+#### UFO Movement Example
+
+With default settings and a spawn radius of 3000:
+
+| Waypoint | Distance to Base | Notes |
+|----------|-----------------|-------|
+| Spawn | 3000 | Random point on spawn circle |
+| 1st | ~2600 | Moved 200-500 closer + lateral offset |
+| 2nd | ~2200 | Moved 200-500 closer + lateral offset |
+| 3rd | ~1800 | Moved 200-500 closer + lateral offset |
+| ... | ... | Continues approaching |
+| Final | 300 | Reached stopping distance, hovers here |
+
+#### Tuning Tips
+
+- **Faster approach:** Increase `Min/Max Approach Increment` (e.g., 400-800)
+- **Slower, more cautious approach:** Decrease increments (e.g., 50-150)
+- **More unpredictable path:** Increase `Max Lateral Spread` (e.g., 1200+)
+- **Straighter path:** Decrease lateral spread (e.g., 0-100)
+- **Closer final position:** Decrease `Stopping Distance` (e.g., 100)
+- **Longer hover pauses:** Increase `Min/Max Hover Time` (e.g., 3-6 seconds)
+
+### UFO Blueprint Setup
+
+1. Create a **Blueprint** based on `UFOAI`
+2. In the Blueprint, set the **UFO Mesh** to your UFO static mesh asset
+3. Adjust **Mesh Scale** if the model is too large/small (e.g., `0.3, 0.3, 0.3`)
+4. Place a **SpecialWaveSpawner** actor in the level
+5. Set its **UFO Class** to your Blueprint
+6. Configure approach movement parameters in the spawner's Details panel
+
+---
+
 ## Game Mode Setup
 
 To use the turret pawn in a level:
@@ -336,10 +411,12 @@ Volume and sensitivity controls are mapped via the Blueprint mapping context (`I
 | `FighterPawn.h/.cpp` | Turret defense pawn with mouse-aim rotation, Q/E height control, and rocket firing |
 | `FighterHUD.h/.cpp` | Draws centered white crosshair, altitude, radar, score, and settings info |
 | `FighterPlayerController.h/.cpp` | Configures mouse input for turret aiming (hidden OS cursor, game-only mode) |
-| `RocketProjectile.h/.cpp` | Rocket projectile with straight-line flight — destroys both tanks and helicopters |
+| `RocketProjectile.h/.cpp` | Rocket projectile with straight-line flight — destroys tanks, helicopters, and UFOs |
 | `BombProjectile.h/.cpp` | Bomb projectile with physics and explosion (legacy, not used in turret mode) |
 | `TankAI.h/.cpp` | Tank enemy AI — moves toward base, stops at line of fire, shoots base |
 | `HeliAI.h/.cpp` | Helicopter enemy AI — flies toward base, stops at line of fire, shoots base |
 | `TankWaveSpawner.h/.cpp` | Spawns waves of tanks with configurable count, speed, and behavior |
 | `HeliWaveSpawner.h/.cpp` | Spawns waves of helicopters with configurable count, speed, and height |
+| `UFOAI.h/.cpp` | UFO enemy AI — incremental approach toward base with lateral spread, hovering, and firing |
+| `SpecialWaveSpawner.h/.cpp` | Spawns waves of UFOs after configurable wave threshold with approach settings |
 | `ExplosionComponent.h/.cpp` | Reusable explosion effect component for enemies |
