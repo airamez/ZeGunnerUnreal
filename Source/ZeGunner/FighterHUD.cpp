@@ -157,9 +157,15 @@ void AFighterHUD::DrawSettingsInfo(AFighterPawn* Fighter)
 	float X = CanvasWidth - Margin - PanelWidth;
 	float Y = CanvasHeight - Margin - PanelHeight;
 
-	// Draw tight background panel
-	FLinearColor PanelColor(0.0f, 0.0f, 0.0f, 0.5f);
-	Canvas->K2_DrawBox(FVector2D(X, Y), FVector2D(PanelWidth, PanelHeight), 1.0f, PanelColor);
+	// Draw background panel with radar-style coloring
+	FLinearColor PanelBg(RadarBgColor.R, RadarBgColor.G, RadarBgColor.B, 0.85f);
+	Canvas->K2_DrawBox(FVector2D(X, Y), FVector2D(PanelWidth, PanelHeight), 1.0f, PanelBg);
+
+	// Draw border (matching radar ring color)
+	Canvas->K2_DrawLine(FVector2D(X, Y), FVector2D(X + PanelWidth, Y), 1.5f, RadarRingColor);
+	Canvas->K2_DrawLine(FVector2D(X + PanelWidth, Y), FVector2D(X + PanelWidth, Y + PanelHeight), 1.5f, RadarRingColor);
+	Canvas->K2_DrawLine(FVector2D(X + PanelWidth, Y + PanelHeight), FVector2D(X, Y + PanelHeight), 1.5f, RadarRingColor);
+	Canvas->K2_DrawLine(FVector2D(X, Y + PanelHeight), FVector2D(X, Y), 1.5f, RadarRingColor);
 
 	float RightEdge = X + PanelWidth - Padding;
 	float TextY = Y + Padding;
@@ -211,42 +217,48 @@ void AFighterHUD::DrawScoreInfo(AFighterPawn* Fighter)
 	int32 EnemyLines = 2; // Tanks and Helis always shown
 	if (Fighter->GetWaveTotalUFOs() > 0) EnemyLines++;
 
-	// Draw semi-transparent background panel
+	// Draw background panel with radar-style coloring
 	float PanelWidth = 140.0f;
 	float PanelHeight = LineSpacing * (2.0f + EnemyLines) + 16.0f;
-	FLinearColor PanelColor(0.0f, 0.0f, 0.0f, 0.4f);
-	Canvas->K2_DrawBox(FVector2D(X - 4.0f, Y - 4.0f), FVector2D(PanelWidth, PanelHeight), 1.0f, PanelColor);
+	float PX = X - 4.0f;
+	float PY = Y - 4.0f;
+	// Force very visible blue background
+	FLinearColor BrightBlueBg(0.0f, 0.3f, 0.8f, 1.0f);
+	UE_LOG(LogTemp, Warning, TEXT("DrawScoreInfo: Drawing BRIGHT BLUE background at (%.0f,%.0f) size %.0fx%.0f"), PX, PY, PanelWidth, PanelHeight);
+	Canvas->K2_DrawBox(FVector2D(PX, PY), FVector2D(PanelWidth, PanelHeight), 1.0f, BrightBlueBg);
+
+	// Draw border (matching radar ring color)
+	Canvas->K2_DrawLine(FVector2D(PX, PY), FVector2D(PX + PanelWidth, PY), 1.5f, RadarRingColor);
+	Canvas->K2_DrawLine(FVector2D(PX + PanelWidth, PY), FVector2D(PX + PanelWidth, PY + PanelHeight), 1.5f, RadarRingColor);
+	Canvas->K2_DrawLine(FVector2D(PX + PanelWidth, PY + PanelHeight), FVector2D(PX, PY + PanelHeight), 1.5f, RadarRingColor);
+	Canvas->K2_DrawLine(FVector2D(PX, PY + PanelHeight), FVector2D(PX, PY), 1.5f, RadarRingColor);
 
 	// Base HP (highlighted, red if low)
 	FLinearColor HPColor = (Fighter->GetBaseHP() < Fighter->GetBaseMaxHP() / 4) ? FLinearColor(1.0f, 0.2f, 0.2f, 1.0f) : ScoreTextColor;
 	FCanvasTextItem HPItem(FVector2D(X, Y), FText::FromString(HPText), HUDFont, HPColor);
 	HPItem.Scale = FVector2D(TextScale, TextScale);
-	HPItem.bOutlined = true;
-	HPItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.6f);
+	HPItem.bOutlined = false;
 	Canvas->DrawItem(HPItem);
 	Y += LineSpacing;
 
 	// Wave
 	FCanvasTextItem WaveItem(FVector2D(X, Y), FText::FromString(WaveText), HUDFont, ScoreTextColor);
 	WaveItem.Scale = FVector2D(TextScale, TextScale);
-	WaveItem.bOutlined = true;
-	WaveItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.6f);
+	WaveItem.bOutlined = false;
 	Canvas->DrawItem(WaveItem);
 	Y += LineSpacing;
 
 	// Tanks X/Y
 	FCanvasTextItem TankItem(FVector2D(X, Y), FText::FromString(TankText), HUDFont, ScoreTextColor);
 	TankItem.Scale = FVector2D(TextScale, TextScale);
-	TankItem.bOutlined = true;
-	TankItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.6f);
+	TankItem.bOutlined = false;
 	Canvas->DrawItem(TankItem);
 	Y += LineSpacing;
 
 	// Helis X/Y
 	FCanvasTextItem HeliItem(FVector2D(X, Y), FText::FromString(HeliText), HUDFont, ScoreTextColor);
 	HeliItem.Scale = FVector2D(TextScale, TextScale);
-	HeliItem.bOutlined = true;
-	HeliItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.6f);
+	HeliItem.bOutlined = false;
 	Canvas->DrawItem(HeliItem);
 	Y += LineSpacing;
 
@@ -255,8 +267,7 @@ void AFighterHUD::DrawScoreInfo(AFighterPawn* Fighter)
 	{
 		FCanvasTextItem UFOItem(FVector2D(X, Y), FText::FromString(UFOText), HUDFont, ScoreTextColor);
 		UFOItem.Scale = FVector2D(TextScale, TextScale);
-		UFOItem.bOutlined = true;
-		UFOItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.6f);
+		UFOItem.bOutlined = false;
 		Canvas->DrawItem(UFOItem);
 		Y += LineSpacing;
 	}
@@ -297,21 +308,18 @@ void AFighterHUD::DrawSpeedAltitude(AFighterPawn* Fighter)
 
 void AFighterHUD::DrawFilledCircle(float CenterX, float CenterY, float Radius, int32 Segments, FLinearColor Color)
 {
-	if (Segments < 3) Segments = 3;
-
-	// Draw filled circle using triangle fan (line-based approximation with thick lines)
-	float AngleStep = 2.0f * PI / static_cast<float>(Segments);
-	for (int32 i = 0; i < Segments; ++i)
+	// Fill circle using horizontal scanlines for a clean, gap-free fill
+	float R2 = Radius * Radius;
+	float Step = 1.0f; // 1 pixel per row
+	for (float Y = -Radius; Y <= Radius; Y += Step)
 	{
-		float Angle1 = AngleStep * i;
-		float Angle2 = AngleStep * (i + 1);
+		float HalfWidth = FMath::Sqrt(FMath::Max(R2 - Y * Y, 0.0f));
+		if (HalfWidth < 0.5f) continue;
 
-		FVector2D P1(CenterX + Radius * FMath::Cos(Angle1), CenterY + Radius * FMath::Sin(Angle1));
-		FVector2D P2(CenterX + Radius * FMath::Cos(Angle2), CenterY + Radius * FMath::Sin(Angle2));
-
-		// Draw triangle from center to edge segment
-		Canvas->K2_DrawLine(FVector2D(CenterX, CenterY), P1, Radius * 0.5f, Color);
-		Canvas->K2_DrawLine(P1, P2, 1.0f, Color);
+		Canvas->K2_DrawLine(
+			FVector2D(CenterX - HalfWidth, CenterY + Y),
+			FVector2D(CenterX + HalfWidth, CenterY + Y),
+			Step, Color);
 	}
 }
 
@@ -328,20 +336,15 @@ void AFighterHUD::DrawRadar(AFighterPawn* Fighter)
 	float RadarCX = CanvasWidth - ScreenMargin - RadarRadius - 10.0f;
 	float RadarCY = ScreenMargin + RadarRadius + 10.0f;
 
-	// --- Draw radar background (filled square) ---
-	float L = RadarCX - RadarRadius;
-	float R = RadarCX + RadarRadius;
-	float T = RadarCY - RadarRadius;
-	float B = RadarCY + RadarRadius;
-	Canvas->K2_DrawBox(FVector2D(L, T), FVector2D(R - L, B - T), 1.0f, RadarBgColor);
-	Canvas->K2_DrawLine(FVector2D(L, T), FVector2D(R, T), 1.5f, RadarRingColor); // top
-	Canvas->K2_DrawLine(FVector2D(R, T), FVector2D(R, B), 1.5f, RadarRingColor); // right
-	Canvas->K2_DrawLine(FVector2D(R, B), FVector2D(L, B), 1.5f, RadarRingColor); // bottom
-	Canvas->K2_DrawLine(FVector2D(L, B), FVector2D(L, T), 1.5f, RadarRingColor); // left
+	// --- Draw radar background (filled circle, high resolution) ---
+	DrawFilledCircle(RadarCX, RadarCY, RadarRadius, 128, RadarBgColor);
+
+	// --- Draw radar outer ring (circle border with high resolution) ---
+	DrawCircle(RadarCX, RadarCY, RadarRadius, 128, RadarRingColor, 1.5f);
 
 	// --- Draw inner concentric rings ---
-	DrawCircle(RadarCX, RadarCY, RadarRadius * 0.66f, 36, FLinearColor(RadarRingColor.R, RadarRingColor.G, RadarRingColor.B, RadarRingColor.A * 0.4f), 1.0f);
-	DrawCircle(RadarCX, RadarCY, RadarRadius * 0.33f, 24, FLinearColor(RadarRingColor.R, RadarRingColor.G, RadarRingColor.B, RadarRingColor.A * 0.3f), 1.0f);
+	DrawCircle(RadarCX, RadarCY, RadarRadius * 0.66f, 96, FLinearColor(RadarRingColor.R, RadarRingColor.G, RadarRingColor.B, RadarRingColor.A * 0.4f), 1.0f);
+	DrawCircle(RadarCX, RadarCY, RadarRadius * 0.33f, 64, FLinearColor(RadarRingColor.R, RadarRingColor.G, RadarRingColor.B, RadarRingColor.A * 0.3f), 1.0f);
 
 	// --- Draw cross lines (N/S/E/W) ---
 	FLinearColor CrossColor(RadarRingColor.R, RadarRingColor.G, RadarRingColor.B, RadarRingColor.A * 0.3f);
@@ -384,10 +387,18 @@ void AFighterHUD::DrawRadar(AFighterPawn* Fighter)
 		float DotX = RadarCX + RotY * Scale;
 		float DotY = RadarCY - RotX * Scale;
 
-		// Clamp to radar square
+		// Clamp to radar circle
 		float Margin = RadarDotSize + 1.0f;
-		DotX = FMath::Clamp(DotX, L + Margin, R - Margin);
-		DotY = FMath::Clamp(DotY, T + Margin, B - Margin);
+		float ClampRadius = RadarRadius - Margin;
+		float DxFromCenter = DotX - RadarCX;
+		float DyFromCenter = DotY - RadarCY;
+		float DistFromCenter = FMath::Sqrt(DxFromCenter * DxFromCenter + DyFromCenter * DyFromCenter);
+		if (DistFromCenter > ClampRadius)
+		{
+			float ScaleFactor = ClampRadius / DistFromCenter;
+			DotX = RadarCX + DxFromCenter * ScaleFactor;
+			DotY = RadarCY + DyFromCenter * ScaleFactor;
+		}
 
 		// Draw red filled dot (diamond shape for tanks)
 		float S = RadarDotSize;
@@ -414,10 +425,18 @@ void AFighterHUD::DrawRadar(AFighterPawn* Fighter)
 		float DotX = RadarCX + RotY * Scale;
 		float DotY = RadarCY - RotX * Scale;
 
-		// Clamp to radar square
+		// Clamp to radar circle
 		float Margin = RadarDotSize + 1.0f;
-		DotX = FMath::Clamp(DotX, L + Margin, R - Margin);
-		DotY = FMath::Clamp(DotY, T + Margin, B - Margin);
+		float ClampRadius = RadarRadius - Margin;
+		float DxFromCenter = DotX - RadarCX;
+		float DyFromCenter = DotY - RadarCY;
+		float DistFromCenter = FMath::Sqrt(DxFromCenter * DxFromCenter + DyFromCenter * DyFromCenter);
+		if (DistFromCenter > ClampRadius)
+		{
+			float ScaleFactor = ClampRadius / DistFromCenter;
+			DotX = RadarCX + DxFromCenter * ScaleFactor;
+			DotY = RadarCY + DyFromCenter * ScaleFactor;
+		}
 
 		// Draw yellow circle dot for helis
 		DrawCircle(DotX, DotY, RadarDotSize, 8, RadarHeliColor, 2.0f);
@@ -450,8 +469,16 @@ void AFighterHUD::DrawRadar(AFighterPawn* Fighter)
 		float DotY = RadarCY - RotX * Scale;
 
 		float Margin = RadarDotSize + 1.0f;
-		DotX = FMath::Clamp(DotX, L + Margin, R - Margin);
-		DotY = FMath::Clamp(DotY, T + Margin, B - Margin);
+		float ClampRadius = RadarRadius - Margin;
+		float DxFromCenter = DotX - RadarCX;
+		float DyFromCenter = DotY - RadarCY;
+		float DistFromCenter = FMath::Sqrt(DxFromCenter * DxFromCenter + DyFromCenter * DyFromCenter);
+		if (DistFromCenter > ClampRadius)
+		{
+			float ScaleFactor = ClampRadius / DistFromCenter;
+			DotX = RadarCX + DxFromCenter * ScaleFactor;
+			DotY = RadarCY + DyFromCenter * ScaleFactor;
+		}
 
 		// Draw magenta X shape for UFOs
 		float S = RadarDotSize;

@@ -49,11 +49,11 @@ protected:
 
 	/** Color for settings text (bottom-right) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Text")
-	FLinearColor SettingsTextColor = FLinearColor(0.8f, 0.8f, 0.8f, 0.85f);
+	FLinearColor SettingsTextColor = FLinearColor(0.0f, 1.0f, 1.0f, 1.0f);
 
 	/** Color for score text (top-left) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Text")
-	FLinearColor ScoreTextColor = FLinearColor(0.2f, 1.0f, 0.4f, 0.9f);
+	FLinearColor ScoreTextColor = FLinearColor(0.0f, 1.0f, 0.6f, 1.0f);
 
 	/** Color for altitude text */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Text")
